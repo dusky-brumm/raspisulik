@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { IDBFactory } from 'fake-indexeddb';
-import { createVideoStore, isVideoFile, videoProgress } from '../src/video-store.ts';
+import { createVideoStore, isVideoFile, videoProgress, youtubeIdFromUrl } from '../src/video-store.ts';
 
 function fixture() {
   const options = { name: crypto.randomUUID(), factory: new IDBFactory(), now: () => new Date('2026-11-08T08:00:00Z') };
@@ -102,6 +102,32 @@ test('one task has one collection; ordering and renaming preserve daily progress
   assert.equal(videoProgress([], [], a.id, '2026-11-08').allDone, false);
   await assert.rejects(store.mark('personal', a.id, clips[0].id, '2026-02-30', true));
   await assert.rejects(store.mark('personal', b.id, clips[0].id, '2026-11-08', true));
+});
+
+test('YouTube links append after files and preserve IDs and marks on re-add', async () => {
+  const { store, options } = fixture();
+  const a = await store.create('personal', 'Зарядка');
+  await store.addFiles('personal', a.id, [file('Начало.webm')]);
+  const clip = await store.addYouTube('personal', a.id, 'https://www.youtube.com/watch?v=VlOH_hq4aec&si=ignored', 'Кор и пресс');
+  await store.mark('personal', a.id, clip.id, '2026-11-08', true);
+  await store.addFiles('personal', a.id, [file('Середина.webm')]);
+  const again = await store.addYouTube('personal', a.id, 'https://youtu.be/VlOH_hq4aec', 'Другое имя');
+  assert.equal(again.id, clip.id);
+  const state = await createVideoStore(options).list('personal', '2026-11-08');
+  assert.equal(state.clips.length, 3);
+  assert.equal(state.clips.at(-1).id, clip.id);
+  assert.equal(state.clips.at(-1).title, 'Кор и пресс');
+  assert.equal(state.clips.at(-1).source, 'https://www.youtube.com/watch?v=VlOH_hq4aec');
+  assert.equal(state.marks.length, 1);
+  assert.equal((await store.list('personal', '2026-11-09')).marks.length, 0);
+  await store.updateClip('personal', a.id, clip.id, { hidden: true });
+  await store.addYouTube('personal', a.id, 'https://www.youtube.com/shorts/VlOH_hq4aec', 'Новое имя');
+  assert.equal((await store.list('personal', '2026-11-08')).clips.at(-1).hidden, false);
+});
+
+test('YouTube URLs accept official variants and reject unrelated or executable links', () => {
+  for (const url of ['https://youtube.com/watch?v=VlOH_hq4aec', 'https://youtu.be/VlOH_hq4aec?t=5', 'https://m.youtube.com/watch?v=VlOH_hq4aec', 'https://www.youtube.com/embed/VlOH_hq4aec', 'https://www.youtube.com/live/VlOH_hq4aec']) assert.equal(youtubeIdFromUrl(url), 'VlOH_hq4aec');
+  for (const url of ['javascript:alert(1)', 'http://youtube.com/watch?v=VlOH_hq4aec', 'https://youtube.com.evil.test/watch?v=VlOH_hq4aec', 'https://youtube.com@evil.test/watch?v=VlOH_hq4aec', 'https://youtube.com:444/watch?v=VlOH_hq4aec', 'https://youtube.com/watch?v=bad', 'https://example.com/VlOH_hq4aec']) assert.throws(() => youtubeIdFromUrl(url));
 });
 
 test('empty files are rejected and absent MIME types can fall back to video extensions', () => {

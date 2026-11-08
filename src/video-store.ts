@@ -2,12 +2,26 @@ import { validDate } from './domain.ts';
 import type { Dataset, DateKey } from './domain.ts';
 
 export interface VideoCollection { id: string; dataset: Dataset; title: string; activityId?: string; createdAt: string }
-export interface VideoClip { id: string; collectionId: string; title: string; filename: string; source: string; size: number; modified: number; type: string; order: number; hidden: boolean }
+export interface VideoClip { id: string; collectionId: string; title: string; filename: string; source: string; size: number; modified: number; type: string; order: number; hidden: boolean; youtubeId?: string }
 export interface VideoMark { id: string; collectionId: string; videoId: string; date: DateKey; completedAt: string }
 export interface VideoLibrary { collections: VideoCollection[]; clips: VideoClip[]; marks: VideoMark[] }
 const videoExtensions = /\.(mp4|m4v|webm|mov|ogv|ogg|mkv|avi)$/i;
 export function isVideoFile(file: Pick<File, 'name' | 'type' | 'size'>) { return file.size > 0 && (file.type.startsWith('video/') || videoExtensions.test(file.name)); }
 export function videoTitle(filename: string) { return filename.replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').trim().slice(0, 180) || 'Видео'; }
+export function youtubeIdFromUrl(value: string): string {
+  let url: URL;
+  try { url = new URL(value.trim()); } catch { throw new Error('Укажите полную ссылку на ролик YouTube.'); }
+  if (url.protocol !== 'https:' || url.username || url.password || url.port) throw new Error('Нужна безопасная ссылка https:// на YouTube.');
+  let id: string | null = null;
+  if (['youtu.be', 'www.youtu.be'].includes(url.hostname)) id = url.pathname.split('/')[1];
+  else if (['youtube.com', 'www.youtube.com', 'm.youtube.com', 'music.youtube.com', 'www.youtube-nocookie.com'].includes(url.hostname)) {
+    const parts = url.pathname.split('/');
+    if (url.pathname === '/watch') id = url.searchParams.get('v');
+    else if (['embed', 'shorts', 'live'].includes(parts[1])) id = parts[2];
+  }
+  if (!id || !/^[a-zA-Z0-9_-]{11}$/.test(id)) throw new Error('Не удалось найти ролик в ссылке YouTube.');
+  return id;
+}
 export function videoProgress(clips: VideoClip[], marks: VideoMark[], collectionId: string, date: DateKey) {
   const active = clips.filter(c => c.collectionId === collectionId && !c.hidden);
   const done = new Set(marks.filter(m => m.collectionId === collectionId && m.date === date).map(m => m.videoId));
@@ -127,6 +141,24 @@ export function createVideoStore(options: { name: string; factory?: IDBFactory; 
       await request(tx.objectStore('clips').put({ ...clip, ...change }));
     });
   }
+  async function addYouTube(dataset: Dataset, id: string, url: string, name: string) {
+    const youtubeId = youtubeIdFromUrl(url), nameText = title(name);
+    return transaction(['collections', 'clips'], 'readwrite', async tx => {
+      await collection(tx, dataset, id);
+      const clips = await request<VideoClip[]>(tx.objectStore('clips').index('collection').getAll(id));
+      const existing = clips.find(c => c.youtubeId === youtubeId);
+      const order = Math.max(-1, ...clips.map(c => c.order)) + 1;
+      if (existing) {
+        // Re-adding puts it at the end, retaining its title, ID and daily marks.
+        const value = { ...existing, hidden: false, order };
+        await request(tx.objectStore('clips').put(value));
+        return value;
+      }
+      const clip: VideoClip = { id: crypto.randomUUID(), collectionId: id, title: nameText, filename: '', source: `https://www.youtube.com/watch?v=${youtubeId}`, size: 0, modified: 0, type: 'youtube', order, hidden: false, youtubeId };
+      await request(tx.objectStore('clips').add(clip));
+      return clip;
+    });
+  }
   async function move(dataset: Dataset, collectionId: string, id: string, direction: -1 | 1) {
     return transaction(['collections', 'clips'], 'readwrite', async tx => {
       await collection(tx, dataset, collectionId);
@@ -158,5 +190,5 @@ export function createVideoStore(options: { name: string; factory?: IDBFactory; 
       return blob;
     });
   }
-  return { list, create, updateCollection, addFiles, updateClip, move, mark, media };
+  return { list, create, updateCollection, addFiles, addYouTube, updateClip, move, mark, media };
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, Check, ChevronLeft, ChevronRight, Film, FolderOpen, LoaderCircle, Pencil, Play, Plus, RotateCcw, Upload, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, ChevronLeft, ChevronRight, ExternalLink, Film, FolderOpen, Link, LoaderCircle, Pencil, Play, Plus, RotateCcw, Upload, X } from 'lucide-react';
 import { addDays, formatDate, validDate } from './domain';
 import type { Dataset, DateKey, Schedule } from './domain';
 import { createVideoStore, videoProgress } from './video-store';
@@ -21,6 +21,7 @@ export default function VideoLibrary({ dataset, schedule, date, today, setDate, 
   const [selectedId, setSelectedId] = useState('');
   const [playingId, setPlayingId] = useState('');
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [linkDraft, setLinkDraft] = useState<{ url: string; title: string } | null>(null);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -60,7 +61,7 @@ export default function VideoLibrary({ dataset, schedule, date, today, setDate, 
     // Directory selection is progressive enhancement; ordinary files always remain available.
     if (folder.current) folder.current.webkitdirectory = true;
   }, [selectedId]);
-  useEffect(() => { setPlayingId(''); setEditing(false); setDraft(null); setNotice(''); }, [selectedId]);
+  useEffect(() => { setPlayingId(''); setEditing(false); setDraft(null); setLinkDraft(null); setNotice(''); }, [selectedId]);
 
   async function run(operation: () => Promise<void>) {
     if (saving.current) return;
@@ -110,6 +111,14 @@ export default function VideoLibrary({ dataset, schedule, date, today, setDate, 
       await reload(item.id); setDraft(null);
     });
   }
+  async function saveLink() {
+    if (!selected || !linkDraft) return;
+    await run(async () => {
+      await store.addYouTube(dataset, selected.id, linkDraft.url, linkDraft.title);
+      await sync(await reload(selected.id), selected);
+      setLinkDraft(null); setNotice('Ролик добавлен в конец подборки.');
+    });
+  }
   return <section className="video-library" aria-label="Видео для тренировок" aria-busy={busy || loading}>
     {library.collections.length > 0 && <div className="video-topbar">
       <label className="video-collection-select"><span className="sr-only">Подборка</span><select aria-label="Подборка" value={selectedId} disabled={busy} onChange={e => { setSelectedId(e.target.value); setSyncError(''); setError(''); }}>{!selectedId && <option value="">Для занятия пока нет подборки</option>}{library.collections.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}</select></label>
@@ -135,10 +144,11 @@ export default function VideoLibrary({ dataset, schedule, date, today, setDate, 
           <button className={`completion ${doneIds.has(clip.id) ? 'checked' : ''}`} disabled={busy} aria-pressed={doneIds.has(clip.id)} aria-label={`${doneIds.has(clip.id) ? 'Снять отметку видео' : 'Выполнить видео'}: ${clip.title}, ${formatDate(date)}`} onClick={() => void mark(clip, !doneIds.has(clip.id))}>{doneIds.has(clip.id) && <Check />}</button>
           {editing ? <div className="video-row-edit"><ClipName clip={clip} busy={busy} onSave={name => void run(async () => { await store.updateClip(dataset, selectedId, clip.id, { title: name }); await reload(); })} /><small>{clip.source}</small><div className="video-row-actions"><button className="icon-button" aria-label={`Выше: ${clip.title}`} disabled={busy || index === 0} onClick={() => void run(async () => { await store.move(dataset, selectedId, clip.id, -1); await reload(); })}><ArrowUp /></button><button className="icon-button" aria-label={`Ниже: ${clip.title}`} disabled={busy || index === clips.length - 1} onClick={() => void run(async () => { await store.move(dataset, selectedId, clip.id, 1); await reload(); })}><ArrowDown /></button><button className="text-button" disabled={busy} onClick={() => void run(async () => { await store.updateClip(dataset, selectedId, clip.id, { hidden: true }); await sync(await reload(), selected); })}><X /> Убрать</button></div></div> : <button className="video-open" aria-label={`Смотреть: ${clip.title}`} onClick={() => setPlayingId(clip.id)}><span className="video-position">{index + 1}</span><span>{clip.title}</span><Play /></button>}
         </li>)}</ol>
-        <div className="video-import-actions"><button className="secondary-button" disabled={busy} onClick={() => files.current?.click()}>{busy ? <LoaderCircle className="spin" /> : <Upload />} Файлы</button><button className="secondary-button" disabled={busy} onClick={() => folder.current?.click()}><FolderOpen /> Папка</button></div>
+        <div className="video-import-actions"><button className="secondary-button" disabled={busy} onClick={() => files.current?.click()}>{busy ? <LoaderCircle className="spin" /> : <Upload />} Файлы</button><button className="secondary-button" disabled={busy} onClick={() => folder.current?.click()}><FolderOpen /> Папка</button><button className="secondary-button" disabled={busy} onClick={() => setLinkDraft({ url: '', title: '' })}><Link /> YouTube</button></div>
       </div>
+      {linkDraft && <form className="panel video-form video-link-form" onSubmit={e => { e.preventDefault(); void saveLink(); }}><label>Ссылка YouTube<input autoFocus type="url" required aria-label="Ссылка YouTube" placeholder="https://www.youtube.com/watch?v=…" value={linkDraft.url} disabled={busy} onChange={e => setLinkDraft({ ...linkDraft, url: e.target.value })} /></label><label>Название ролика<input required maxLength={180} value={linkDraft.title} disabled={busy} onChange={e => setLinkDraft({ ...linkDraft, title: e.target.value })} /></label><div className="video-form-actions"><button className="text-button" type="button" disabled={busy} onClick={() => setLinkDraft(null)}>Отмена</button><button className="primary-button" disabled={busy || !linkDraft.url.trim() || !linkDraft.title.trim()}>Добавить в конец</button></div></form>}
       {editing && hidden.length > 0 && <details className="video-hidden"><summary>Убранные видео ({hidden.length})</summary>{hidden.map(clip => <div key={clip.id}><span>{clip.title}</span><button className="text-button" disabled={busy} onClick={() => void run(async () => { await store.updateClip(dataset, selectedId, clip.id, { hidden: false }); await sync(await reload(), selected); })}><RotateCcw /> Вернуть</button></div>)}</details>}
-      <p className="hint-text video-storage-note">Видео и их отметки остаются в этом браузере. Сохраняйте исходные файлы: экспорт расписания не содержит видеоподборки.</p>
+      <p className="hint-text video-storage-note">Файлы и отметки остаются в этом браузере. Для роликов YouTube нужен интернет. Экспорт расписания не содержит видеоподборки.</p>
     </>}
     <input ref={files} type="file" multiple accept="video/*,.mp4,.m4v,.webm,.mov,.ogv,.ogg,.mkv,.avi" className="file-input" aria-label="Видео из файлов" onChange={e => { const value = Array.from(e.currentTarget.files ?? []); e.currentTarget.value = ''; if (value.length) void importFiles(value); }} />
     <input ref={folder} type="file" multiple className="file-input" aria-label="Папка с видео" onChange={e => { const value = Array.from(e.currentTarget.files ?? []); e.currentTarget.value = ''; if (value.length) void importFiles(value); }} />
@@ -154,11 +164,13 @@ function ClipName({ clip, busy, onSave }: { clip: VideoClip; busy: boolean; onSa
 function VideoPlayer({ dataset, clip, done, busy, hasNext, onComplete }: { dataset: Dataset; clip: VideoClip; done: boolean; busy: boolean; hasNext: boolean; onComplete: () => void }) {
   const [url, setUrl] = useState(''), [error, setError] = useState('');
   useEffect(() => {
+    if (clip.youtubeId) return;
     let active = true, objectUrl = '';
     void store.media(dataset, clip.collectionId, clip.id).then(blob => {
       if (active) { objectUrl = URL.createObjectURL(blob); setUrl(objectUrl); }
     }).catch(e => { if (active) setError(errorText(e)); });
     return () => { active = false; if (objectUrl) URL.revokeObjectURL(objectUrl); };
-  }, [dataset, clip.id, clip.collectionId]);
-  return <div className="panel video-player">{url ? <video controls playsInline preload="metadata" src={url} aria-label={`Видео: ${clip.title}`} onError={() => setError('Браузер не смог воспроизвести этот формат. Попробуйте MP4 с H.264 или WebM.')} /> : <p role="status">Открываем видео…</p>}{error && <p className="backup-error" role="alert">{error}{url && <a className="text-button" href={url} download={clip.filename}>Скачать исходный файл</a>}</p>}<div className="video-player-footer"><span>{clip.title}</span><button className="primary-button" disabled={busy || (done && !hasNext)} onClick={onComplete}><Check />{done ? hasNext ? 'Дальше' : 'Выполнено' : hasNext ? 'Выполнено и дальше' : 'Выполнено'}</button></div></div>;
+  }, [dataset, clip.id, clip.collectionId, clip.youtubeId]);
+  const youtube = clip.youtubeId && /^[a-zA-Z0-9_-]{11}$/.test(clip.youtubeId) ? clip.youtubeId : undefined;
+  return <div className="panel video-player">{youtube ? <iframe src={`https://www.youtube-nocookie.com/embed/${youtube}?rel=0&playsinline=1`} title={`Видео: ${clip.title}`} referrerPolicy="strict-origin-when-cross-origin" allow="encrypted-media; picture-in-picture; fullscreen" allowFullScreen /> : url ? <video controls playsInline preload="metadata" src={url} aria-label={`Видео: ${clip.title}`} onError={() => setError('Браузер не смог воспроизвести этот формат. Попробуйте MP4 с H.264 или WebM.')} /> : <p role="status">Открываем видео…</p>}{youtube && <a className="text-button video-youtube-link" href={`https://www.youtube.com/watch?v=${youtube}`} target="_blank" rel="noreferrer"><ExternalLink /> Открыть на YouTube</a>}{error && <p className="backup-error" role="alert">{error}{url && <a className="text-button" href={url} download={clip.filename}>Скачать исходный файл</a>}</p>}<div className="video-player-footer"><span>{clip.title}</span><button className="primary-button" disabled={busy || (done && !hasNext)} onClick={onComplete}><Check />{done ? hasNext ? 'Дальше' : 'Выполнено' : hasNext ? 'Выполнено и дальше' : 'Выполнено'}</button></div></div>;
 }
