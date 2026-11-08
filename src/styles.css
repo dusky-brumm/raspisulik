@@ -347,7 +347,9 @@ h1 { font-size: 28px; line-height: 34px; font-weight: 400; max-width: 100%; over
 .video-topbar > .text-button { flex-shrink: 0; }
 .video-form { padding: 24px; margin-bottom: 24px; display: grid; gap: 20px; }
 .video-form label { display: grid; gap: 8px; color: var(--secondary); font-size: 13px; }
-.video-form input, .video-form select, .video-rename input { min-width: 0; width: 100%; min-height: 44px; border: 1px solid var(--glass-border); background: var(--glass); border-radius: 12px; padding: 8px 12px; color: var(--ink); font-size: 15px; }
+.video-form input, .video-form select, .video-form textarea, .video-rename input { min-width: 0; width: 100%; min-height: 44px; border: 1px solid var(--glass-border); background: var(--glass); border-radius: 12px; padding: 8px 12px; color: var(--ink); font: inherit; font-size: 15px; }
+.video-form textarea { resize: vertical; line-height: 22px; }
+.video-form textarea:focus-visible { outline: 2px solid var(--accent-ui); outline-offset: 3px; }
 .video-form-actions { display: flex; justify-content: flex-end; gap: 12px; }
 .video-empty { padding: 40px 24px; text-align: center; color: var(--secondary); }
 .video-empty > svg { margin-bottom: 16px; color: var(--accent-ui); }
@@ -367,6 +369,12 @@ h1 { font-size: 28px; line-height: 34px; font-weight: 400; max-width: 100%; over
 .video-player-footer { padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .video-player-footer > span { min-width: 0; overflow-wrap: anywhere; }
 .video-player-footer > button { flex-shrink: 0; }
+.exercise-instructions { padding: 24px 24px 0; }
+.exercise-instructions h2 { font-size: 18px; line-height: 24px; font-weight: 500; overflow-wrap: anywhere; }
+.exercise-instructions p { margin-top: 16px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.exercise-instructions .exercise-repetitions { color: var(--accent-ui); }
+.exercise-instructions a { margin-top: 12px; padding-left: 0; overflow-wrap: anywhere; }
+.exercise-card .video-player-footer { justify-content: flex-end; }
 .video-playlist ol { padding: 0; margin: 0; list-style: none; }
 .video-playlist li { display: flex; align-items: center; gap: 12px; min-height: 76px; padding: 12px 24px; border-bottom: 1px solid var(--line); }
 .video-playlist li.video-selected { background: rgb(220 232 242 / .5); }
@@ -375,13 +383,15 @@ h1 { font-size: 28px; line-height: 34px; font-weight: 400; max-width: 100%; over
 .video-open { display: flex; align-items: center; gap: 16px; text-align: left; min-width: 0; flex: 1; min-height: 48px; }
 .video-open > span:nth-child(2) { flex: 1; overflow-wrap: anywhere; }
 .video-open > svg { color: var(--accent-ui); }
+.video-open-label > strong { display: block; font-weight: 400; }
+.video-open-label > small { display: block; margin-top: 4px; font-size: 13px; line-height: 18px; color: var(--secondary); }
 .video-position { width: 20px; color: var(--secondary); font-size: 13px; font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .video-done .video-open { color: var(--secondary); }
-.video-import-actions { display: flex; gap: 12px; padding: 24px; }
+.video-import-actions { display: flex; flex-wrap: wrap; gap: 12px; padding: 24px; }
 .video-row-edit { flex: 1; min-width: 0; }
 .video-row-edit > small { display: block; color: var(--secondary); font-size: 13px; overflow-wrap: anywhere; margin-top: 4px; }
 .video-rename { display: flex; align-items: center; gap: 8px; }
-.video-row-actions { display: flex; justify-content: flex-end; margin-top: 8px; }
+.video-row-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; margin-top: 8px; }
 .video-edit-heading { margin-top: -12px; margin-bottom: 12px; }
 .video-hidden { margin-top: 24px; color: var(--secondary); font-size: 13px; }
 .video-hidden summary { cursor: pointer; padding: 12px 0; min-height: 44px; }

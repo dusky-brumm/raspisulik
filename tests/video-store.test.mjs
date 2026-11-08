@@ -136,6 +136,55 @@ test('empty files are rejected and absent MIME types can fall back to video exte
   assert.equal(isVideoFile(new File(['abc'], 'notes.txt')), false);
 });
 
+test('text steps share a daily checklist with videos and keep instructions on reopening', async () => {
+  const { store, options } = fixture();
+  const a = await store.create('personal', 'Моя подборка');
+  await store.addFiles('personal', a.id, [file('Начало.webm')]);
+  const input = { title: 'Текстовый шаг', repetitions: '3 раза', instructions: 'Первая строка.\nВторая строка.', sourceUrl: 'https://example.org/instructions' };
+  const step = await store.saveExercise('personal', a.id, input);
+  const video = (await store.list('personal', '2026-11-08')).clips[0];
+  await store.mark('personal', a.id, video.id, '2026-11-08', true);
+  await store.mark('personal', a.id, step.id, '2026-11-08', true);
+  const state = await createVideoStore(options).list('personal', '2026-11-08');
+  assert.equal(state.clips[1].type, 'exercise');
+  assert.equal(state.clips[1].exercise.instructions, input.instructions);
+  assert.equal(state.clips[1].exercise.repetitions, '3 раза');
+  assert.equal(state.clips[1].exercise.sourceUrl, input.sourceUrl);
+  assert.equal(videoProgress(state.clips, state.marks, a.id, '2026-11-08').allDone, true);
+  assert.equal((await store.list('personal', '2026-11-09')).marks.length, 0);
+  assert.equal(await (await store.media('personal', a.id, video.id)).text(), 'test video');
+});
+
+test('editing, re-adding and restoring text steps preserves IDs, order and marks', async () => {
+  const { store } = fixture();
+  const a = await store.create('personal', 'Подборка');
+  const input = { title: 'Шаг', repetitions: '3 раза', instructions: 'Инструкция.' };
+  const step = await store.saveExercise('personal', a.id, input);
+  await store.mark('personal', a.id, step.id, '2026-11-08', true);
+  assert.equal((await store.saveExercise('personal', a.id, input)).id, step.id);
+  const updated = { ...input, title: 'Новое название', repetitions: '4 раза' };
+  assert.equal((await store.saveExercise('personal', a.id, updated, step.id)).id, step.id);
+  await store.updateClip('personal', a.id, step.id, { hidden: true });
+  assert.equal((await store.saveExercise('personal', a.id, updated)).id, step.id);
+  const state = await store.list('personal', '2026-11-08');
+  assert.equal(state.clips.length, 1);
+  assert.equal(state.clips[0].hidden, false);
+  assert.equal(state.clips[0].order, step.order);
+  assert.equal(state.marks.length, 1);
+});
+
+test('invalid text steps cannot change existing instructions, daily history or another dataset', async () => {
+  const { store } = fixture();
+  const a = await store.create('personal', 'Подборка');
+  const input = { title: 'Шаг', repetitions: '3 раза', instructions: 'Инструкция.' };
+  const step = await store.saveExercise('personal', a.id, input);
+  const before = await store.list('personal', '2026-11-08');
+  for (const change of [{ instructions: '' }, { repetitions: ' ' }, { title: '' }, { instructions: 'x'.repeat(4001) }, { sourceUrl: 'javascript:alert(1)' }, { sourceUrl: 'https://user:password@example.org/' }]) await assert.rejects(store.saveExercise('personal', a.id, { ...input, ...change }, step.id));
+  await assert.rejects(store.saveExercise('demo', a.id, input, step.id));
+  await assert.rejects(store.saveExercise('personal', a.id, input, 'missing'));
+  assert.deepEqual(await store.list('personal', '2026-11-08'), before);
+});
+
 test('switching from files to folders does not duplicate an existing clip or lose distinct subfolders', async () => {
   const { store } = fixture();
   const a = await store.create('personal', 'Зарядка');

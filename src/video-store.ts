@@ -2,7 +2,9 @@ import { validDate } from './domain.ts';
 import type { Dataset, DateKey } from './domain.ts';
 
 export interface VideoCollection { id: string; dataset: Dataset; title: string; activityId?: string; createdAt: string }
-export interface VideoClip { id: string; collectionId: string; title: string; filename: string; source: string; size: number; modified: number; type: string; order: number; hidden: boolean; youtubeId?: string }
+export interface ExerciseInstructions { repetitions: string; instructions: string; sourceUrl?: string }
+export interface ExerciseInput extends ExerciseInstructions { title: string }
+export interface VideoClip { id: string; collectionId: string; title: string; filename: string; source: string; size: number; modified: number; type: string; order: number; hidden: boolean; youtubeId?: string; exercise?: ExerciseInstructions }
 export interface VideoMark { id: string; collectionId: string; videoId: string; date: DateKey; completedAt: string }
 export interface VideoLibrary { collections: VideoCollection[]; clips: VideoClip[]; marks: VideoMark[] }
 const videoExtensions = /\.(mp4|m4v|webm|mov|ogv|ogg|mkv|avi)$/i;
@@ -29,6 +31,19 @@ export function videoProgress(clips: VideoClip[], marks: VideoMark[], collection
   return { completed, total: active.length, allDone: active.length > 0 && completed === active.length };
 }
 function title(value: string) { const text = value.trim(); if (!text || text.length > 180) throw new Error('Введите название до 180 символов.'); return text; }
+function exerciseInput(value: ExerciseInput): ExerciseInput {
+  const name = title(value.title), repetitions = value.repetitions.trim(), instructions = value.instructions.trim();
+  if (!repetitions || repetitions.length > 180) throw new Error('Укажите повторы или длительность до 180 символов.');
+  if (!instructions || instructions.length > 4000) throw new Error('Добавьте инструкцию до 4000 символов.');
+  let sourceUrl: string | undefined;
+  if (value.sourceUrl?.trim()) {
+    let url: URL;
+    try { url = new URL(value.sourceUrl.trim()); } catch { throw new Error('Укажите полную ссылку на источник.'); }
+    if (url.protocol !== 'https:' || url.username || url.password || url.href.length > 2048) throw new Error('Источник должен быть безопасной ссылкой https://.');
+    sourceUrl = url.href;
+  }
+  return { title: name, repetitions, instructions, ...(sourceUrl ? { sourceUrl } : {}) };
+}
 function request<T>(req: IDBRequest<T>): Promise<T> { return new Promise((resolve, reject) => { req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); }); }
 
 /** Blobs stay in their own store: loading the library never loads video contents. */
@@ -159,6 +174,23 @@ export function createVideoStore(options: { name: string; factory?: IDBFactory; 
       return clip;
     });
   }
+  async function saveExercise(dataset: Dataset, collectionId: string, input: ExerciseInput, id?: string) {
+    const { title: name, ...exercise } = exerciseInput(input);
+    return transaction(['collections', 'clips'], 'readwrite', async tx => {
+      await collection(tx, dataset, collectionId);
+      const clips = await request<VideoClip[]>(tx.objectStore('clips').index('collection').getAll(collectionId));
+      const current = id ? clips.find(c => c.id === id && c.exercise) : clips.find(c => c.exercise && c.title === name && c.exercise.repetitions === exercise.repetitions && c.exercise.instructions === exercise.instructions && c.exercise.sourceUrl === exercise.sourceUrl);
+      if (id && !current) throw new Error('Упражнение не найдено. Обновите список.');
+      if (current) {
+        const value = { ...current, title: name, exercise, source: exercise.sourceUrl ?? '', hidden: false };
+        await request(tx.objectStore('clips').put(value));
+        return value;
+      }
+      const clip: VideoClip = { id: crypto.randomUUID(), collectionId, title: name, exercise, filename: '', source: exercise.sourceUrl ?? '', size: 0, modified: 0, type: 'exercise', order: Math.max(-1, ...clips.map(c => c.order)) + 1, hidden: false };
+      await request(tx.objectStore('clips').add(clip));
+      return clip;
+    });
+  }
   async function move(dataset: Dataset, collectionId: string, id: string, direction: -1 | 1) {
     return transaction(['collections', 'clips'], 'readwrite', async tx => {
       await collection(tx, dataset, collectionId);
@@ -190,5 +222,5 @@ export function createVideoStore(options: { name: string; factory?: IDBFactory; 
       return blob;
     });
   }
-  return { list, create, updateCollection, addFiles, addYouTube, updateClip, move, mark, media };
+  return { list, create, updateCollection, addFiles, addYouTube, saveExercise, updateClip, move, mark, media };
 }
