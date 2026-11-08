@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "timezone": "Asia/Qyzylorda",
+  "challenge": {
+    "title": "30 дней",
+    "startDate": "2026-11-08",
+    "durationDays": 30
+  },
+  "goals": [],
+  "activities": []
+}
