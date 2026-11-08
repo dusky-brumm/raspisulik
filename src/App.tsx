@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import type { ReactNode } from 'react';
 import {
   AlignLeft, ArrowDownLeft, ArrowLeft, CalendarDays, Check, Folders,
-  ChevronLeft, ChevronRight, CircleHelp, Clock3,
+  ChevronLeft, ChevronRight, CircleHelp, Clock3, Film,
   Download, ListTodo, LoaderCircle, RefreshCw, Save, Search, Upload,
   Sunrise, TriangleAlert, X,
 } from 'lucide-react';
@@ -13,14 +13,16 @@ import {
 } from './domain';
 import type { Activity, AppState, Challenge, Color, Dataset, DateKey, Goal, Occurrence, Schedule } from './domain';
 import { dataClient } from './data-client';
+import VideoLibrary from './VideoLibrary';
 
-type View = 'timeline' | 'day' | 'calendar' | 'goals' | 'tasks';
+type View = 'timeline' | 'day' | 'calendar' | 'goals' | 'tasks' | 'videos';
 const nav: { id: View; title: string; icon: typeof Folders }[] = [
   { id: 'timeline', title: 'Таймлайн', icon: AlignLeft },
   { id: 'day', title: 'День', icon: Sunrise },
   { id: 'calendar', title: 'Календарь', icon: CalendarDays },
   { id: 'goals', title: 'Группы', icon: Folders },
   { id: 'tasks', title: 'Задачи', icon: ListTodo },
+  { id: 'videos', title: 'Видео', icon: Film },
 ];
 const headings: Record<View, string> = {
   timeline: 'Расписание',
@@ -28,6 +30,7 @@ const headings: Record<View, string> = {
   calendar: 'Календарь',
   goals: 'Группы',
   tasks: 'Задачи',
+  videos: 'Видео',
 };
 function plural(n: number, words: [string, string, string]): string {
   return `${n} ${n % 100 >= 11 && n % 100 <= 14 ? words[2] : n % 10 === 1 ? words[0] : n % 10 >= 2 && n % 10 <= 4 ? words[1] : words[2]}`;
@@ -85,6 +88,7 @@ export default function App() {
   const [goalId, setGoalId] = useState('all');
   const [detail, setDetail] = useState<{ activity: Activity; occurrence?: Occurrence } | null>(null);
   const [help, setHelp] = useState(false);
+  const [videoActivity, setVideoActivity] = useState<string>();
   const [backup, setBackup] = useState(false);
   const [backupError, setBackupError] = useState('');
   const [importing, setImporting] = useState(false);
@@ -160,6 +164,18 @@ export default function App() {
   function goToday() { setDay(today); setMonth(monthStart(today)); }
   function detailOf(activity: Activity, occurrence?: Occurrence) { setDetail({ activity, occurrence }); }
   function openGroup(id: string) { setGoalId(id); setView('goals'); }
+  function openVideos(activity: Activity, date: DateKey) { setVideoActivity(activity.id); setDay(date); setDetail(null); setView('videos'); }
+  async function videoCompletion(activityId: string, date: DateKey, completed: boolean) {
+    const activity = schedule?.activities.find(a => a.id === activityId);
+    if (!activity || !occursOn(activity, date)) return;
+    if (savingRef.current) throw new Error('Дождитесь сохранения другой отметки и повторите.');
+    const expectedDataset = dataset;
+    savingRef.current = true; ++request.current;
+    try {
+      const completions = await dataClient.setCompleted(dataset, { activityId, date, completed });
+      if (modeRef.current === expectedDataset) setState(prev => prev ? { ...prev, completions } : prev);
+    } finally { savingRef.current = false; setLoading(false); }
+  }
   async function exportBackup() {
     try {
       const text = await dataClient.exportPersonal();
@@ -211,7 +227,7 @@ export default function App() {
         <span className="brand-mark" aria-hidden="true"><span /><span /><span /></span>
         <span>расписулик</span>
       </a>
-      <nav aria-label="Основная навигация">{nav.map(({ id, title, icon: Icon }) => <button key={id} className={`nav-item ${view === id ? 'active' : ''}`} onClick={() => { setView(id); if (id === 'goals') setGoalId('all'); }} aria-current={view === id ? 'page' : undefined}>
+      <nav aria-label="Основная навигация">{nav.map(({ id, title, icon: Icon }) => <button key={id} className={`nav-item ${view === id ? 'active' : ''}`} onClick={() => { setView(id); if (id === 'goals') setGoalId('all'); if (id === 'videos') setVideoActivity(undefined); }} aria-current={view === id ? 'page' : undefined}>
         <Icon size={22} strokeWidth={1.5} /><span>{title}</span>
       </button>)}</nav>
       <div className="sidebar-bottom"><button className="help-button" aria-label="Добавить через чат" title="Добавить через чат" onClick={() => setHelp(true)}><CircleHelp size={22} /> Как добавить</button></div>
@@ -224,9 +240,9 @@ export default function App() {
         {error && <div className="error-banner" role="alert"><TriangleAlert size={18} /><div><strong>Не удалось обновить данные</strong><p>{error}</p><small>{state ? 'Последнее загруженное расписание сохранено на экране. ' : ''}Исправьте файл или проверьте, запущено ли приложение.</small></div><button className="text-button" onClick={() => void refresh()}>Повторить</button></div>}
         {!state ? <div className="loading-state" role="status">{loading ? <><LoaderCircle className="spin" />Загружаем расписание…</> : <><CalendarDays />Расписание пока недоступно. Попробуйте обновить данные.</>}</div> : <>
           <ChallengeStatus challenge={schedule!.challenge} today={today} onToday={() => openDay(today)} />
-          {view !== 'goals' && schedule!.goals.length > 0 && <div className="goal-filters" aria-label="Фильтр по группе"><button className={goalId === 'all' ? 'selected' : ''} aria-pressed={goalId === 'all'} onClick={() => setGoalId('all')}>Все группы</button>{schedule!.goals.map(goal => <button key={goal.id} className={goalId === goal.id ? 'selected' : ''} aria-pressed={goalId === goal.id} onClick={() => setGoalId(goal.id)}><span className={`dot color-${goal.color}`} />{goal.title}</button>)}{schedule!.activities.some(a => !a.goalId) && <button className={goalId === UNGROUPED_ID ? 'selected' : ''} aria-pressed={goalId === UNGROUPED_ID} onClick={() => setGoalId(UNGROUPED_ID)}>Без группы</button>}</div>}
+          {view !== 'goals' && view !== 'videos' && schedule!.goals.length > 0 && <div className="goal-filters" aria-label="Фильтр по группе"><button className={goalId === 'all' ? 'selected' : ''} aria-pressed={goalId === 'all'} onClick={() => setGoalId('all')}>Все группы</button>{schedule!.goals.map(goal => <button key={goal.id} className={goalId === goal.id ? 'selected' : ''} aria-pressed={goalId === goal.id} onClick={() => setGoalId(goal.id)}><span className={`dot color-${goal.color}`} />{goal.title}</button>)}{schedule!.activities.some(a => !a.goalId) && <button className={goalId === UNGROUPED_ID ? 'selected' : ''} aria-pressed={goalId === UNGROUPED_ID} onClick={() => setGoalId(UNGROUPED_ID)}>Без группы</button>}</div>}
 
-          {schedule!.activities.length === 0 && (view !== 'goals' || schedule!.goals.length === 0) ? <EmptyPersonal /> : filtered && <>
+          {view === 'videos' ? <VideoLibrary key={`${dataset}:${videoActivity ?? 'library'}`} dataset={dataset} schedule={schedule!} date={day} today={today} setDate={setDay} focusActivity={videoActivity} onProgress={videoCompletion} /> : schedule!.activities.length === 0 && (view !== 'goals' || schedule!.goals.length === 0) ? <EmptyPersonal /> : filtered && <>
             {view === 'timeline' && <>
               <section className="panel timeline-panel" aria-label="Месячный таймлайн"><div className="panel-toolbar"><MonthNavigation month={month} setMonth={setMonth} onToday={goToday} /></div>
                 <Timeline schedule={filtered} state={state} month={month} today={today} openDay={openDay} onDetail={detailOf} showGroupNames={goalId === 'all'} onGroup={openGroup} />
@@ -244,12 +260,14 @@ export default function App() {
       <div className="detail-goal"><GoalSymbol goal={goalFor(schedule, detail.activity)} small /><span>{goalFor(schedule, detail.activity)?.title ?? 'Без группы'}{detail.activity.section && <> / {detail.activity.section}</>}</span><span className="kind-tag">{{ habit: 'Привычка', task: 'Задача', event: 'Событие' }[detail.activity.kind]}</span></div>
       <dl className="detail-list"><div><dt>Когда</dt><dd>{detail.occurrence ? formatDate(detail.occurrence.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : periodLabel(detail.activity)}</dd></div><div><dt>Время</dt><dd>{detail.activity.time ?? 'Без точного времени'} · {duration(detail.activity.durationMinutes)}</dd></div><div><dt>Повторение</dt><dd>{recurrenceLabel(detail.activity)}</dd></div>{detail.occurrence && <div><dt>Период</dt><dd>{periodLabel(detail.activity)}</dd></div>}{Boolean(detail.activity.excludedDates?.length) && <div><dt>Исключения</dt><dd>{detail.activity.excludedDates!.map(d => formatDate(d)).join(', ')}</dd></div>}</dl>
       {detail.activity.notes && <div className="detail-note"><span>Заметка</span><p>{detail.activity.notes}</p></div>}
+      <button className="secondary-button detail-videos" onClick={() => openVideos(detail.activity, detail.occurrence?.date ?? today)}><Film /> Видео для занятия <ChevronRight /></button>
       {detail.occurrence ? <button className={`primary-button detail-complete ${isDone(state, detail.occurrence) ? 'done-button' : ''}`} disabled={Boolean(busyKey)} onClick={() => void toggle(detail.occurrence!)}>{busyKey === detail.occurrence.key ? <LoaderCircle size={17} className="spin" /> : <Check size={17} />}{isDone(state, detail.occurrence) ? 'Выполнено · снять отметку' : 'Отметить выполненным'}<span>{formatDate(detail.occurrence.date, { day: 'numeric', month: 'short' })}</span></button> : <p className="hint-text">Чтобы отметить выполнение, откройте нужный день занятия.</p>}
     </Modal>}
     {help && <Modal title="Добавить через чат" onClose={closeHelp}><p className="help-intro">Назовите цель, проблему или проект, затем связанные задачи. Внутри группы можно выделить разделы. Для расписания укажите даты, повторение и длительность.</p><blockquote>«В цель “Привести себя в форму”, в раздел “Движение”, добавь прогулку через день на 30 минут с 9 ноября»</blockquote><button className="primary-button" onClick={closeHelp}>Понятно</button></Modal>}
     {backup && <Modal title="Расписание и отметки" onClose={closeBackup}>
       <p className="help-intro">Данные хранятся в этом браузере. Файл позволяет перенести их на другое устройство.</p>
       <p className="hint-text">Импорт расписания сохраняет отметки. Резервная копия восстанавливает расписание и отметки из файла.</p>
+      <p className="hint-text">Видеоподборки и отметки роликов хранятся отдельно и не входят в этот JSON.</p>
       {backupError && <p className="backup-error" role="alert">{backupError}</p>}
       <div className="backup-actions"><button className="secondary-button" disabled={importing} onClick={() => void exportBackup()}><Download size={22} /> Экспорт</button><button className="primary-button" disabled={importing} onClick={() => importInput.current?.click()}>{importing ? <LoaderCircle className="spin" size={22} /> : <Upload size={22} />} Импорт</button></div>
       <input ref={importInput} type="file" accept=".json,application/json" className="file-input" aria-label="Файл расписания" onChange={e => { const file = e.currentTarget.files?.[0]; e.currentTarget.value = ''; if (file) void importBackup(file); }} />
