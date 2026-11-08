@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "timezone": "Asia/Qyzylorda",
+  "challenge": {
+    "title": "30 дней",
+    "startDate": "2026-11-08",
+    "durationDays": 30
+  },
+  "goals": [
+    { "id": "health", "title": "Привести себя в форму", "type": "goal", "description": "Движение и питание", "color": "sage" },
+    { "id": "learning", "title": "Учиться новому", "type": "project", "description": "Чтение и практика английского", "color": "lavender" },
+    { "id": "balance", "title": "Время для себя", "type": "goal", "description": "Отдых и итоги недели", "color": "peach" },
+    { "id": "personal", "title": "Беспорядок на рабочем месте", "type": "problem", "description": "Разобрать накопившиеся вещи", "color": "blue" }
+  ],
+  "activities": [
+    {
+      "id": "morning-stretch", "title": "Утренняя разминка", "goalId": "health", "section": "Движение", "kind": "habit",
+      "startDate": "2026-11-01", "time": "08:30", "durationMinutes": 15,
+      "recurrence": { "type": "daily" },
+      "notes": "Демонстрационный пример. Немного движения для мягкого начала дня."
+    },
+    {
+      "id": "home-workout", "title": "Тренировка дома", "goalId": "health", "section": "Движение", "kind": "habit",
+      "startDate": "2026-11-02", "endDate": "2026-11-15", "time": "18:00", "durationMinutes": 40,
+      "recurrence": { "type": "weekly", "weekdays": [1, 3, 5] },
+      "excludedDates": ["2026-11-11"],
+      "notes": "Демонстрационный период на две недели. 11 ноября — исключение, занятие пропущено в плане."
+    },
+    {
+      "id": "reading", "title": "Чтение книги", "goalId": "learning", "section": "Чтение", "kind": "habit",
+      "startDate": "2026-11-01", "endDate": "2026-11-30", "time": "21:00", "durationMinutes": 20,
+      "recurrence": { "type": "daily" }, "notes": "Демонстрационный пример. Одна глава вечером."
+    },
+    {
+      "id": "english", "title": "Английский язык", "goalId": "learning", "section": "Английский", "kind": "habit",
+      "startDate": "2026-11-01", "endDate": "2026-11-28", "time": "10:00", "durationMinutes": 30,
+      "recurrence": { "type": "weekly", "weekdays": [2, 4, 7] }
+    },
+    {
+      "id": "walk", "title": "Прогулка без телефона", "goalId": "health", "section": "Движение", "kind": "habit",
+      "startDate": "2026-11-02", "endDate": "2026-11-22", "time": "12:30", "durationMinutes": 30,
+      "recurrence": { "type": "interval", "everyDays": 2 }
+    },
+    {
+      "id": "weekly-reflection", "title": "Подвести итоги недели", "goalId": "balance", "kind": "task",
+      "startDate": "2026-11-01", "durationMinutes": 15,
+      "recurrence": { "type": "weekly", "weekdays": [7] },
+      "notes": "Без точного времени. Записать, что получилось и что хочется изменить."
+    },
+    {
+      "id": "clear-desk", "title": "Разобрать рабочий стол", "goalId": "personal", "kind": "task",
+      "startDate": "2026-11-10", "durationMinutes": 25, "recurrence": { "type": "once" }
+    },
+    {
+      "id": "coffee", "title": "Встреча за кофе", "goalId": "balance", "kind": "event",
+      "startDate": "2026-11-08", "time": "10:15", "durationMinutes": 45,
+      "recurrence": { "type": "once" },
+      "notes": "Демонстрационный пример пересечения: встреча частично совпадает с английским."
+    },
+    {
+      "id": "meal-planning", "title": "Спланировать питание", "goalId": "health", "section": "Питание", "kind": "task",
+      "startDate": "2026-11-01", "durationMinutes": 20,
+      "recurrence": { "type": "weekly", "weekdays": [7] },
+      "notes": "Нейтральный демонстрационный пример задачи в разделе «Питание»."
+    }
+  ]
+}

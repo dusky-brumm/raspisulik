@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dist-pages/
+.local/
+data/personal/completions.json
+data/personal/schedule.json
+data/demo/completions.json
+*.tmp
+*.log

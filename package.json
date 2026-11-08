@@ -1,0 +1,32 @@
+{
+  "name": "raspisulik",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.18.0" },
+  "scripts": {
+    "dev": "node --experimental-strip-types server/index.mjs --dev",
+    "start": "node --experimental-strip-types server/index.mjs",
+    "build": "tsc --noEmit && vite build",
+    "build:pages": "tsc --noEmit && node --experimental-strip-types scripts/build-pages.mjs",
+    "preview:pages": "node scripts/preview-pages.mjs",
+    "check:pages": "node --experimental-strip-types scripts/check-pages.mjs",
+    "deploy:pages": "npm run build:pages && npm run check:pages && node scripts/publish-pages.mjs",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "check:data": "node --experimental-strip-types scripts/check-data.mjs"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "lucide-react": "^0.468.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.1.0",
+    "typescript": "~5.9.3",
+    "vite": "^7.2.2"
+  }
+}
