@@ -1949,6 +1949,24 @@ h1 {
 .video-topbar > .text-button {
   flex-shrink: 0;
 }
+.workout-choices {
+  display: flex;
+  flex-wrap: wrap;
+  flex: 1;
+  gap: 8px;
+}
+.workout-choices button {
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  text-align: left;
+  font-size: 13px;
+}
+.workout-choices button.selected {
+  background: var(--ice);
+  border-color: var(--accent-ui);
+}
 .video-form {
   padding: 24px;
   margin-bottom: 24px;
@@ -2043,6 +2061,10 @@ h1 {
   margin-bottom: 16px;
   overflow-wrap: anywhere;
 }
+.workout-program {
+  margin: 0 0 16px;
+  padding-left: 0;
+}
 .video-player {
   margin-bottom: 24px;
 }
@@ -2110,12 +2132,48 @@ h1 {
   list-style: none;
 }
 .video-playlist li {
-  display: flex;
-  align-items: center;
-  gap: 12px;
   min-height: 76px;
   padding: 12px 24px;
   border-bottom: 1px solid var(--line);
+}
+.video-step-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+}
+.video-inline-player {
+  margin: 12px 0 4px;
+}
+.video-inline-player .video-player {
+  margin: 0;
+  box-shadow: none;
+  overflow: hidden;
+  border-radius: 12px;
+}
+.video-inline-player video,
+.video-inline-player iframe {
+  max-height: min(48vh, 360px);
+}
+.video-inline-player .exercise-instructions {
+  padding: 0 16px;
+}
+.video-inline-player .exercise-instructions p {
+  margin: 8px 0 0;
+}
+.video-inline-player .video-player-footer {
+  justify-content: flex-end;
+  padding: 12px 16px;
+}
+.empty-personal > p {
+  margin: 12px auto 24px;
+  max-width: 440px;
+  color: var(--secondary);
+}
+.empty-personal > a,
+.empty-personal > button {
+  margin: 8px auto;
+  width: fit-content;
 }
 .video-playlist li.video-selected {
   background: rgb(220 232 242 / 0.5);

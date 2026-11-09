@@ -21,7 +21,7 @@ import {
 import { addDays, formatDate, validDate } from './domain';
 import type { Dataset, DateKey, Schedule } from './domain';
 import { videoProgress } from './video-store';
-import { videoStore as store, withWorkoutLock } from './workout-store';
+import { ensureLocalWorkouts, videoStore as store, withWorkoutLock } from './workout-store';
 import type { ExerciseInput, VideoClip, VideoCollection, VideoLibrary as Library } from './video-store';
 
 const empty = (): Library => ({ collections: [], clips: [], marks: [] });
@@ -77,10 +77,12 @@ export default function VideoLibrary({
   const doneIds = new Set(library.marks.filter((m) => m.date === date).map((m) => m.videoId));
   const progress = videoProgress(library.clips, library.marks, selectedId, date);
   const linked = schedule.activities.find((a) => a.id === selected?.activityId);
+  const programUrl = clips.length === 1 ? clips[0].exercise?.sourceUrl : undefined;
 
   const reload = useCallback(
     async (preferred?: string) => {
       const version = currentContext.current === contextKey ? ++loadVersion.current : -1;
+      await ensureLocalWorkouts(dataset);
       const result = await store.list(dataset, date);
       if (version === loadVersion.current && currentContext.current === contextKey) {
         setLibrary(result);
@@ -139,7 +141,7 @@ export default function VideoLibrary({
   useEffect(() => {
     if (!playingId) return;
     const frame = requestAnimationFrame(() => {
-      player.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
+      player.current?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
       player.current?.focus({ preventScroll: true });
     });
     return () => cancelAnimationFrame(frame);
@@ -190,14 +192,12 @@ export default function VideoLibrary({
       void navigator.storage?.persist?.().catch(() => {});
     });
   }
-  async function mark(clip: VideoClip, completed: boolean, next = false) {
+  async function mark(clip: VideoClip, completed: boolean) {
     if (!selected) return;
     await run(async () => {
       await store.mark(dataset, selected.id, clip.id, date, completed);
       const updated = await reload(selected.id);
       await sync(updated, selected);
-      if (next && currentContext.current === contextKey)
-        setPlayingId(clips[clips.findIndex((c) => c.id === clip.id) + 1]?.id ?? clip.id);
     });
   }
   function newDraft() {
@@ -236,26 +236,46 @@ export default function VideoLibrary({
     <section className="video-library" aria-label="Шаги тренировки" aria-busy={busy || loading}>
       {library.collections.length > 0 && (
         <div className="video-topbar">
-          <label className="video-collection-select">
-            <span className="sr-only">Подборка</span>
-            <select
-              aria-label="Подборка"
-              value={selectedId}
-              disabled={busy}
-              onChange={(e) => {
-                setSelectedId(e.target.value);
-                setSyncError('');
-                setError('');
-              }}
-            >
-              {!selectedId && <option value="">Для занятия пока нет подборки</option>}
-              {library.collections.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.title}
-                </option>
+          {library.collections.length <= 6 && !editing ? (
+            <div className="workout-choices" role="group" aria-label="Тренировка">
+              {library.collections.map((collection) => (
+                <button
+                  key={collection.id}
+                  className={selectedId === collection.id ? 'selected' : ''}
+                  aria-pressed={selectedId === collection.id}
+                  disabled={busy}
+                  onClick={() => {
+                    setSelectedId(collection.id);
+                    setSyncError('');
+                    setError('');
+                  }}
+                >
+                  {collection.title}
+                </button>
               ))}
-            </select>
-          </label>
+            </div>
+          ) : (
+            <label className="video-collection-select">
+              <span className="sr-only">Подборка</span>
+              <select
+                aria-label="Подборка"
+                value={selectedId}
+                disabled={busy}
+                onChange={(e) => {
+                  setSelectedId(e.target.value);
+                  setSyncError('');
+                  setError('');
+                }}
+              >
+                {!selectedId && <option value="">Для занятия пока нет подборки</option>}
+                {library.collections.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {editing && !draft && selected && (
             <button className="text-button" disabled={busy} onClick={newDraft}>
               <Plus /> Новая подборка
@@ -377,14 +397,16 @@ export default function VideoLibrary({
             <Film />
             <h2>
               {focusActivity
-                ? (schedule.activities.find((a) => a.id === focusActivity)?.title ??
-                  'Соберите свою тренировку')
-                : 'Соберите свою тренировку'}
+                ? (schedule.activities.find((a) => a.id === focusActivity)?.title ?? 'Тренировок пока нет')
+                : 'Тренировок пока нет'}
             </h2>
-            <p>Создайте подборку и добавьте видео или упражнения с инструкциями.</p>
-            <button className="primary-button" onClick={newDraft}>
-              <Plus /> Новая подборка
-            </button>
+            <p>Готовую тренировку можно открыть из сохранённой копии.</p>
+            <details>
+              <summary>Добавить вручную</summary>
+              <button className="text-button" onClick={newDraft}>
+                <Plus /> Новая подборка
+              </button>
+            </details>
           </div>
         )
       ) : (
@@ -441,30 +463,15 @@ export default function VideoLibrary({
               {progress.completed} / {progress.total} выполнено
             </span>
           </div>
-          {selected.activityId && (
+          {selected.activityId && (editing || !linked) && (
             <p className="video-linked">
               {linked ? <>Задача: {linked.title}</> : 'Связанной задачи больше нет в расписании'}
             </p>
           )}
-          {playing && (
-            <div
-              ref={player}
-              tabIndex={-1}
-              className="video-player-region"
-              role="region"
-              aria-label={`Текущий шаг: ${playing.title}`}
-            >
-              <VideoPlayer
-                key={playing.id}
-                dataset={dataset}
-                clip={playing}
-                done={doneIds.has(playing.id)}
-                busy={busy}
-                hasNext={clips.findIndex((c) => c.id === playing.id) < clips.length - 1}
-                onComplete={() => void mark(playing, true, true)}
-                onClose={closePlayer}
-              />
-            </div>
+          {programUrl && (
+            <a className="text-button workout-program" href={programUrl} target="_blank" rel="noreferrer">
+              <ExternalLink /> Открыть программу
+            </a>
           )}
           <div className="panel video-playlist">
             {!clips.length && (
@@ -481,94 +488,119 @@ export default function VideoLibrary({
                   data-clip-id={clip.id}
                   className={`${doneIds.has(clip.id) ? 'video-done' : ''} ${playingId === clip.id ? 'video-selected' : ''}`}
                 >
-                  <button
-                    className={`completion ${doneIds.has(clip.id) ? 'checked' : ''}`}
-                    disabled={busy}
-                    aria-pressed={doneIds.has(clip.id)}
-                    aria-label={`${doneIds.has(clip.id) ? 'Снять отметку шага' : 'Выполнить шаг'}: ${clip.title}, ${formatDate(date)}`}
-                    onClick={() => void mark(clip, !doneIds.has(clip.id))}
-                  >
-                    {doneIds.has(clip.id) && <Check />}
-                  </button>
-                  {editing ? (
-                    <div className="video-row-edit">
-                      <ClipName
-                        clip={clip}
-                        busy={busy}
-                        onSave={(name) =>
-                          void run(async () => {
-                            await store.updateClip(dataset, selectedId, clip.id, { title: name });
-                            await reload();
-                          })
-                        }
-                      />
-                      <small>{clip.exercise?.repetitions ?? clip.source}</small>
-                      <div className="video-row-actions">
-                        {clip.exercise && (
+                  <div className="video-step-row">
+                    <button
+                      className={`completion ${doneIds.has(clip.id) ? 'checked' : ''}`}
+                      disabled={busy}
+                      aria-pressed={doneIds.has(clip.id)}
+                      aria-label={`${doneIds.has(clip.id) ? 'Снять отметку шага' : 'Выполнить шаг'}: ${clip.title}, ${formatDate(date)}`}
+                      onClick={() => void mark(clip, !doneIds.has(clip.id))}
+                    >
+                      {doneIds.has(clip.id) && <Check />}
+                    </button>
+                    {editing ? (
+                      <div className="video-row-edit">
+                        <ClipName
+                          clip={clip}
+                          busy={busy}
+                          onSave={(name) =>
+                            void run(async () => {
+                              await store.updateClip(dataset, selectedId, clip.id, { title: name });
+                              await reload();
+                            })
+                          }
+                        />
+                        <small>{clip.exercise?.repetitions ?? clip.source}</small>
+                        <div className="video-row-actions">
+                          {clip.exercise && (
+                            <button
+                              className="text-button"
+                              disabled={busy}
+                              aria-label={`Изменить инструкцию: ${clip.title}`}
+                              onClick={() =>
+                                setExerciseDraft({ id: clip.id, title: clip.title, ...clip.exercise! })
+                              }
+                            >
+                              <Pencil /> Инструкция
+                            </button>
+                          )}
+                          <button
+                            className="icon-button"
+                            aria-label={`Выше: ${clip.title}`}
+                            disabled={busy || index === 0}
+                            onClick={() =>
+                              void run(async () => {
+                                await store.move(dataset, selectedId, clip.id, -1);
+                                await reload();
+                              })
+                            }
+                          >
+                            <ArrowUp />
+                          </button>
+                          <button
+                            className="icon-button"
+                            aria-label={`Ниже: ${clip.title}`}
+                            disabled={busy || index === clips.length - 1}
+                            onClick={() =>
+                              void run(async () => {
+                                await store.move(dataset, selectedId, clip.id, 1);
+                                await reload();
+                              })
+                            }
+                          >
+                            <ArrowDown />
+                          </button>
                           <button
                             className="text-button"
                             disabled={busy}
-                            aria-label={`Изменить инструкцию: ${clip.title}`}
                             onClick={() =>
-                              setExerciseDraft({ id: clip.id, title: clip.title, ...clip.exercise! })
+                              void run(async () => {
+                                await store.updateClip(dataset, selectedId, clip.id, { hidden: true });
+                                await sync(await reload(), selected);
+                              })
                             }
                           >
-                            <Pencil /> Инструкция
+                            <X /> Убрать
                           </button>
-                        )}
-                        <button
-                          className="icon-button"
-                          aria-label={`Выше: ${clip.title}`}
-                          disabled={busy || index === 0}
-                          onClick={() =>
-                            void run(async () => {
-                              await store.move(dataset, selectedId, clip.id, -1);
-                              await reload();
-                            })
-                          }
-                        >
-                          <ArrowUp />
-                        </button>
-                        <button
-                          className="icon-button"
-                          aria-label={`Ниже: ${clip.title}`}
-                          disabled={busy || index === clips.length - 1}
-                          onClick={() =>
-                            void run(async () => {
-                              await store.move(dataset, selectedId, clip.id, 1);
-                              await reload();
-                            })
-                          }
-                        >
-                          <ArrowDown />
-                        </button>
-                        <button
-                          className="text-button"
-                          disabled={busy}
-                          onClick={() =>
-                            void run(async () => {
-                              await store.updateClip(dataset, selectedId, clip.id, { hidden: true });
-                              await sync(await reload(), selected);
-                            })
-                          }
-                        >
-                          <X /> Убрать
-                        </button>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <button
-                      className="video-open"
-                      aria-label={`${clip.exercise ? 'Открыть упражнение' : 'Смотреть'}: ${clip.title}`}
-                      onClick={() => setPlayingId(clip.id)}
+                    ) : (
+                      <button
+                        className="video-open"
+                        aria-label={`${clip.exercise ? 'Открыть упражнение' : 'Смотреть'}: ${clip.title}`}
+                        aria-expanded={playingId === clip.id}
+                        aria-controls={`step-${clip.id}`}
+                        onClick={() => (playingId === clip.id ? closePlayer() : setPlayingId(clip.id))}
+                      >
+                        <span className="video-position">{index + 1}</span>
+                        <span className="video-open-label">
+                          <strong>{clip.title}</strong>
+                          {clip.exercise && <small>{clip.exercise.repetitions}</small>}
+                        </span>
+                        {clip.exercise ? <AlignLeft /> : <Play />}
+                      </button>
+                    )}
+                  </div>
+                  {!editing && playing?.id === clip.id && (
+                    <div
+                      id={`step-${clip.id}`}
+                      ref={player}
+                      tabIndex={-1}
+                      className="video-player-region video-inline-player"
+                      role="region"
+                      aria-label={`Текущий шаг: ${clip.title}`}
                     >
-                      <span className="video-position">{index + 1}</span>
-                      <span className="video-open-label">
-                        <strong>{clip.title}</strong>
-                        {clip.exercise && <small>{clip.exercise.repetitions}</small>}
-                      </span>
-                      {clip.exercise ? <AlignLeft /> : <Play />}
-                    </button>
+                      <VideoPlayer
+                        key={clip.id}
+                        dataset={dataset}
+                        clip={clip}
+                        done={doneIds.has(clip.id)}
+                        busy={busy}
+                        showSource={!programUrl}
+                        onComplete={() => void mark(clip, true)}
+                        onClose={closePlayer}
+                      />
+                    </div>
                   )}
                 </li>
               ))}
@@ -824,7 +856,7 @@ function VideoPlayer({
   clip,
   done,
   busy,
-  hasNext,
+  showSource,
   onComplete,
   onClose,
 }: {
@@ -832,7 +864,7 @@ function VideoPlayer({
   clip: VideoClip;
   done: boolean;
   busy: boolean;
-  hasNext: boolean;
+  showSource: boolean;
   onComplete: () => void;
   onClose: () => void;
 }) {
@@ -863,15 +895,13 @@ function VideoPlayer({
     <div className={`panel video-player ${clip.exercise ? 'exercise-card' : ''}`}>
       <div className="video-player-toolbar">
         <button className="text-button" onClick={onClose}>
-          <ChevronLeft /> К списку шагов
+          <X /> Свернуть
         </button>
       </div>
       {clip.exercise ? (
         <article className="exercise-instructions">
-          <h2>{clip.title}</h2>
-          <p className="exercise-repetitions">{clip.exercise.repetitions}</p>
           <p>{clip.exercise.instructions}</p>
-          {clip.exercise.sourceUrl && (
+          {showSource && clip.exercise.sourceUrl && (
             <a className="text-button" href={clip.exercise.sourceUrl} target="_blank" rel="noreferrer">
               <ExternalLink /> Источник ·{' '}
               {clip.exercise.sourceUrl.replace(/^https:\/\/(www\.)?/, '').split('/')[0]}
@@ -886,19 +916,18 @@ function VideoPlayer({
           allow="encrypted-media; picture-in-picture; fullscreen"
           allowFullScreen
         />
-      ) : url ? (
+      ) : (
         <video
           controls
           playsInline
           preload="metadata"
-          src={url}
+          src={url || undefined}
+          aria-busy={!url}
           aria-label={`Видео: ${clip.title}`}
           onError={() =>
             setError('Браузер не смог воспроизвести этот формат. Попробуйте MP4 с H.264 или WebM.')
           }
         />
-      ) : (
-        <p role="status">Открываем видео…</p>
       )}
       {youtube && (
         <a
@@ -921,10 +950,9 @@ function VideoPlayer({
         </p>
       )}
       <div className="video-player-footer">
-        {!clip.exercise && <span>{clip.title}</span>}
-        <button className="primary-button" disabled={busy || (done && !hasNext)} onClick={onComplete}>
+        <button className="secondary-button" disabled={busy || done} onClick={onComplete}>
           <Check />
-          {done ? (hasNext ? 'Дальше' : 'Выполнено') : hasNext ? 'Выполнено и дальше' : 'Выполнено'}
+          {done ? 'Выполнено' : 'Отметить выполненным'}
         </button>
       </div>
     </div>

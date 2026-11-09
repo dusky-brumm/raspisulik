@@ -37,6 +37,17 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname.startsWith('/api/')) {
     try {
       if (url.pathname === '/api/health' && req.method === 'GET') return json(res, 200, { app: 'raspisulik', version: 1 });
+      if (url.pathname === '/api/workout-archive' && req.method === 'GET') {
+        try {
+          const body = await readFile(path.join(root, 'data/personal/workouts.zip'));
+          res.writeHead(200, { 'Content-Type': 'application/zip', 'Content-Length': body.length, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
+          return res.end(body);
+        } catch (error) {
+          if (error.code !== 'ENOENT') throw error;
+          res.writeHead(204, { 'Cache-Control': 'no-store' });
+          return res.end();
+        }
+      }
       const dataset = url.searchParams.get('dataset') || 'personal';
       if (!['personal', 'demo'].includes(dataset)) return json(res, 400, { error: 'Неизвестный набор данных.' });
       if (url.pathname === '/api/state' && req.method === 'GET') return json(res, 200, { ...await store.load(dataset), today: todayInZone() });

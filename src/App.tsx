@@ -57,7 +57,7 @@ import { dataClient } from './data-client';
 import TrainingView from './TrainingView';
 import DayView from './DayView';
 import BackupPanel from './BackupPanel';
-import { videoStore } from './workout-store';
+import { ensureLocalWorkouts, videoStore } from './workout-store';
 import { readPreference, writePreference } from './preferences';
 
 type View = 'timeline' | 'day' | 'calendar' | 'goals' | 'tasks' | 'videos';
@@ -89,7 +89,7 @@ function getDataset(): Dataset {
   } catch {
     /* Keep the app readable when preferences cannot be stored. */
   }
-  return dataClient.browser ? 'personal' : 'demo';
+  return 'personal';
 }
 function isDone(state: AppState, o: Occurrence): boolean {
   return Boolean(state.completions.completed[o.key]);
@@ -203,8 +203,8 @@ export default function App() {
   useEffect(() => {
     let active = true;
     const update = () => {
-      void videoStore
-        .getCollections(dataset)
+      void ensureLocalWorkouts(dataset)
+        .then(() => videoStore.getCollections(dataset))
         .then((items) => {
           if (active)
             setWorkoutActivities(
@@ -571,7 +571,7 @@ export default function App() {
                   onProgress={videoCompletion}
                 />
               ) : schedule!.activities.length === 0 && (view !== 'goals' || schedule!.goals.length === 0) ? (
-                <EmptyPersonal />
+                <EmptyPersonal onImport={() => setBackup(true)} />
               ) : (
                 filtered && (
                   <>
@@ -803,10 +803,23 @@ function SmallEmpty({ text }: { text: string }) {
     </div>
   );
 }
-function EmptyPersonal() {
+function EmptyPersonal({ onImport }: { onImport: () => void }) {
   return (
     <section className="panel empty-personal">
-      <h2>Пока нет планов</h2>
+      <h2>Откройте своё расписание</h2>
+      {dataClient.browser ? (
+        <>
+          <p>В этом браузере его ещё нет. На этом компьютере готовый план доступен в локальном приложении.</p>
+          <a className="primary-button" href="http://127.0.0.1:4173/">
+            Открыть на этом компьютере
+          </a>
+          <button className="text-button" onClick={onImport}>
+            Открыть копию расписания
+          </button>
+        </>
+      ) : (
+        <p>Продиктуйте планы в чате — они появятся здесь.</p>
+      )}
     </section>
   );
 }
