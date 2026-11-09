@@ -17,6 +17,13 @@ export type Recurrence =
   | { type: 'daily' }
   | { type: 'weekly'; weekdays: number[] }
   | { type: 'interval'; everyDays: number };
+export interface ActivityDateOverride {
+  time?: string;
+  durationMinutes?: number;
+  title?: string;
+  notes?: string;
+  displayBlock?: string;
+}
 export interface Activity {
   id: string;
   title: string;
@@ -30,6 +37,8 @@ export interface Activity {
   recurrence: Recurrence;
   excludedDates?: DateKey[];
   notes?: string;
+  displayBlock?: string;
+  dateOverrides?: Record<DateKey, ActivityDateOverride>;
 }
 export interface Challenge {
   title: string;
@@ -167,11 +176,20 @@ export function occursOn(activity: Activity, date: DateKey): boolean {
       return daysBetween(activity.startDate, date) % activity.recurrence.everyDays === 0;
   }
 }
+export function activityOnDate(activity: Activity, date: DateKey): Activity {
+  const override = activity.dateOverrides?.[date];
+  return override ? { ...activity, ...override } : activity;
+}
 export function occurrences(schedule: Schedule, from: DateKey, to: DateKey): Occurrence[] {
   const result: Occurrence[] = [];
   for (let date = from; date <= to; date = addDays(date, 1)) {
     for (const activity of schedule.activities) {
-      if (occursOn(activity, date)) result.push({ key: occurrenceKey(activity.id, date), date, activity });
+      if (occursOn(activity, date))
+        result.push({
+          key: occurrenceKey(activity.id, date),
+          date,
+          activity: activityOnDate(activity, date),
+        });
     }
   }
   return result.sort(
@@ -275,6 +293,26 @@ export function daySegments(schedule: Schedule, date: DateKey): DaySegment[] {
       (other) => other !== item && item.start < other.end && other.start < item.end,
     );
   return result;
+}
+
+export interface AgendaBlock {
+  title?: string;
+  start: number;
+  end: number;
+  items: DaySegment[];
+}
+/** Display grouping never merges occurrence keys, checkboxes or video links. */
+export function agendaBlocks(segments: DaySegment[]): AgendaBlock[] {
+  const blocks: AgendaBlock[] = [];
+  for (const segment of segments) {
+    const last = blocks.at(-1),
+      title = segment.activity.displayBlock;
+    if (title && last?.title === title && last.items[0].date === segment.date && segment.start <= last.end) {
+      last.items.push(segment);
+      last.end = Math.max(last.end, segment.end);
+    } else blocks.push({ title, start: segment.start, end: segment.end, items: [segment] });
+  }
+  return blocks;
 }
 
 function invariant(condition: unknown, message: string): asserts condition {
@@ -395,6 +433,55 @@ export function validateSchedule(value: unknown): asserts value is Schedule {
       a.notes === undefined || (typeof a.notes === 'string' && a.notes.length <= 5000),
       `${prefix}notes должно быть строкой до 5000 символов.`,
     );
+    invariant(
+      a.displayBlock === undefined || validText(a.displayBlock, 100),
+      `${prefix}displayBlock: название блока до 100 символов.`,
+    );
+    if (a.dateOverrides !== undefined) {
+      invariant(
+        isObject(a.dateOverrides) && Object.keys(a.dateOverrides).length <= 366,
+        `${prefix}dateOverrides: до 366 изменений по датам.`,
+      );
+      for (const [date, change] of Object.entries(a.dateOverrides)) {
+        invariant(
+          validDate(date) && date >= a.startDate && (a.endDate === undefined || date <= a.endDate),
+          `${prefix}дата изменения вне периода занятия.`,
+        );
+        invariant(
+          isObject(change) &&
+            Object.keys(change).length > 0 &&
+            Object.keys(change).every((key) =>
+              ['time', 'durationMinutes', 'title', 'notes', 'displayBlock'].includes(key),
+            ),
+          `${prefix}изменение даты содержит неизвестные поля.`,
+        );
+        invariant(
+          change.time === undefined ||
+            (typeof change.time === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(change.time)),
+          `${prefix}неверное время изменения.`,
+        );
+        invariant(
+          change.durationMinutes === undefined ||
+            (typeof change.durationMinutes === 'number' &&
+              Number.isInteger(change.durationMinutes) &&
+              change.durationMinutes >= 1 &&
+              change.durationMinutes <= 1440),
+          `${prefix}неверная длительность изменения.`,
+        );
+        invariant(
+          change.title === undefined || validText(change.title, 180),
+          `${prefix}неверное название изменения.`,
+        );
+        invariant(
+          change.notes === undefined || (typeof change.notes === 'string' && change.notes.length <= 5000),
+          `${prefix}неверная заметка изменения.`,
+        );
+        invariant(
+          change.displayBlock === undefined || validText(change.displayBlock, 100),
+          `${prefix}неверное название блока изменения.`,
+        );
+      }
+    }
     invariant(isObject(a.recurrence), `${prefix}нужно правило recurrence.`);
     const r = a.recurrence;
     invariant(

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import {
   activitiesForGroup,
+  activityOnDate,
   addDays,
   challengeProgress,
   duration,
@@ -974,6 +975,7 @@ function Timeline({
                               </button>
                             </th>
                             {days.map((date) => {
+                              const datedActivity = activityOnDate(activity, date);
                               const occurrence = occursOn(activity, date);
                               const inPeriod =
                                 activity.recurrence.type !== 'once' &&
@@ -995,11 +997,11 @@ function Timeline({
                                   {occurrence && (
                                     <button
                                       className={`occurrence-marker ${done ? 'completed-marker' : ''}`}
-                                      title={`${activity.title} · ${formatDate(date)} · ${activity.time ?? 'без времени'}${done ? ' · выполнено' : ''}`}
-                                      aria-label={`${activity.title}, ${formatDate(date)}${done ? ', выполнено' : ''}`}
+                                      title={`${datedActivity.title} · ${formatDate(date)} · ${datedActivity.time ?? 'без времени'}${done ? ' · выполнено' : ''}`}
+                                      aria-label={`${datedActivity.title}, ${formatDate(date)}${done ? ', выполнено' : ''}`}
                                       onClick={() =>
-                                        onDetail(activity, {
-                                          activity,
+                                        onDetail(datedActivity, {
+                                          activity: datedActivity,
                                           date,
                                           key: occurrenceKey(activity.id, date),
                                         })
@@ -1271,7 +1273,11 @@ function TasksView({
   const recent = occurrences(schedule, from, to);
   for (const a of schedule.activities) {
     if (a.recurrence.type === 'once' && a.startDate < from && occursOn(a, a.startDate))
-      recent.push({ activity: a, date: a.startDate, key: occurrenceKey(a.id, a.startDate) });
+      recent.push({
+        activity: activityOnDate(a, a.startDate),
+        date: a.startDate,
+        key: occurrenceKey(a.id, a.startDate),
+      });
   }
   // Older completed occurrences stay available in the completed tab.
   const known = new Set(recent.map((o) => o.key));
@@ -1280,7 +1286,7 @@ function TasksView({
       if (known.has(key)) continue;
       const [id, date] = key.split('@'),
         a = schedule.activities.find((item) => item.id === id);
-      if (a && occursOn(a, date)) recent.push({ activity: a, date, key });
+      if (a && occursOn(a, date)) recent.push({ activity: activityOnDate(a, date), date, key });
     }
   const normalized = query.trim().toLocaleLowerCase('ru');
   const items = recent

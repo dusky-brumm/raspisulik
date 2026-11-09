@@ -1054,6 +1054,71 @@ h1 {
 .agenda-description:hover .task-title {
   color: var(--accent-ui);
 }
+.agenda-block {
+  border-bottom: 1px solid var(--line);
+}
+.agenda-block:last-child {
+  border-bottom: 0;
+}
+.agenda-block > summary {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 0;
+  min-height: 88px;
+  list-style: none;
+  cursor: pointer;
+}
+.agenda-block > summary::-webkit-details-marker {
+  display: none;
+}
+.agenda-block > summary:focus-visible {
+  outline: 2px solid var(--accent-ui);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+.agenda-block > summary > .agenda-time {
+  border-color: var(--accent-ui);
+}
+.agenda-block-description {
+  flex: 1;
+  min-width: 0;
+}
+.agenda-block-description > strong {
+  display: block;
+  font-weight: 500;
+  font-size: 15px;
+  line-height: 22px;
+}
+.agenda-block-description > span {
+  display: block;
+  margin-top: 4px;
+  color: var(--secondary);
+  font-size: 13px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+.agenda-block > summary > .lucide {
+  width: 18px;
+  height: 18px;
+  color: var(--secondary);
+  transition: transform 180ms var(--ease);
+}
+.agenda-block[open] > summary > .lucide {
+  transform: rotate(90deg);
+}
+.agenda-block-items {
+  padding-left: 16px;
+  border-top: 1px solid var(--line);
+}
+@media (max-width: 600px) {
+  .agenda-block > summary {
+    gap: 12px;
+  }
+  .agenda-block-items {
+    padding-left: 8px;
+  }
+}
 .agenda-workout {
   width: 44px;
 }

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import {
   addDays,
+  agendaBlocks,
   clockTime,
   daySegments,
   duration,
@@ -101,11 +102,51 @@ export default function DayView({
     : undefined;
   const nearest = current ?? (isToday ? segments.find((segment) => segment.start > nowMinute) : undefined);
 
+  function renderSegment(segment: DaySegment) {
+    const goal = goalFor(schedule, segment.activity);
+    return (
+      <div
+        key={segment.key}
+        data-occurrence={segment.key}
+        className={`agenda-row color-${goal?.color ?? 'lavender'} ${done(state, segment) ? 'is-done' : ''} ${current?.key === segment.key ? 'agenda-current' : ''}`}
+        aria-current={current?.key === segment.key ? 'time' : undefined}
+      >
+        <span className="agenda-time">
+          {clockTime(segment.start)}
+          <small>{endTime(segment)}</small>
+        </span>
+        <button className="agenda-description" onClick={() => onDetail(segment.activity, segment)}>
+          <span className="task-title">{segment.activity.title}</span>
+          <span className="task-meta">
+            {segment.continues ? 'Со вчера · ' : ''}
+            {duration(segment.end - segment.start)}
+            {segment.continuesAfter ? ' · далее завтра' : ''}
+            {current?.key === segment.key ? ' · сейчас' : ''}
+            {segment.conflict ? ' · пересечение' : ''}
+          </span>
+        </button>
+        {workoutActivities.has(segment.activity.id) && (
+          <button
+            className="icon-button agenda-workout"
+            title="Открыть тренировку"
+            aria-label={`Открыть шаги: ${segment.activity.title}`}
+            onClick={() => onOpenWorkout(segment.activity, segment.date)}
+          >
+            <Film />
+          </button>
+        )}
+        {checkButton(segment)}
+      </div>
+    );
+  }
+
   function jumpToNow() {
     if (mode === 'scale' && grid.current) {
       grid.current.scrollTop = Math.max(0, (nowMinute - firstHour * 60) * SCALE - 80);
     } else if (nearest) {
       const row = agenda.current?.querySelector<HTMLElement>(`[data-occurrence="${nearest.key}"]`);
+      const group = row?.closest('details');
+      if (group) group.open = true;
       row?.scrollIntoView({ block: 'center', behavior: 'instant' });
       row?.querySelector<HTMLElement>('.agenda-description')?.focus({ preventScroll: true });
     }
@@ -218,46 +259,30 @@ export default function DayView({
           {mode === 'list' ? (
             <div className="day-agenda" ref={agenda}>
               {segments.length === 0 && <p className="small-empty">Нет занятий по времени</p>}
-              {segments.map((segment) => {
-                const goal = goalFor(schedule, segment.activity);
-                return (
-                  <div
-                    key={segment.key}
-                    data-occurrence={segment.key}
-                    className={`agenda-row color-${goal?.color ?? 'lavender'} ${done(state, segment) ? 'is-done' : ''} ${current?.key === segment.key ? 'agenda-current' : ''}`}
-                    aria-current={current?.key === segment.key ? 'time' : undefined}
-                  >
-                    <span className="agenda-time">
-                      {clockTime(segment.start)}
-                      <small>{endTime(segment)}</small>
-                    </span>
-                    <button
-                      className="agenda-description"
-                      onClick={() => onDetail(segment.activity, segment)}
-                    >
-                      <span className="task-title">{segment.activity.title}</span>
-                      <span className="task-meta">
-                        {segment.continues ? 'Со вчера · ' : ''}
-                        {duration(segment.end - segment.start)}
-                        {segment.continuesAfter ? ' · далее завтра' : ''}
-                        {current?.key === segment.key ? ' · сейчас' : ''}
-                        {segment.conflict ? ' · пересечение' : ''}
+              {agendaBlocks(segments).map((block) =>
+                block.title && block.items.length > 1 ? (
+                  <details key={block.items[0].key} className="agenda-block">
+                    <summary>
+                      <span className="agenda-time">
+                        {clockTime(block.start)}
+                        <small>{block.end === 1440 ? '24:00' : clockTime(block.end)}</small>
                       </span>
-                    </button>
-                    {workoutActivities.has(segment.activity.id) && (
-                      <button
-                        className="icon-button agenda-workout"
-                        title="Открыть тренировку"
-                        aria-label={`Открыть шаги: ${segment.activity.title}`}
-                        onClick={() => onOpenWorkout(segment.activity, segment.date)}
-                      >
-                        <Film />
-                      </button>
-                    )}
-                    {checkButton(segment)}
-                  </div>
-                );
-              })}
+                      <span className="agenda-block-description">
+                        <strong>{block.title}</strong>
+                        <span>
+                          {block.items
+                            .map((item) => `${item.activity.title} (${duration(item.end - item.start)})`)
+                            .join(', ')}
+                        </span>
+                      </span>
+                      <ChevronRight aria-hidden="true" />
+                    </summary>
+                    <div className="agenda-block-items">{block.items.map(renderSegment)}</div>
+                  </details>
+                ) : (
+                  renderSegment(block.items[0])
+                ),
+              )}
             </div>
           ) : (
             <div
