@@ -3,14 +3,33 @@ import assert from 'node:assert/strict';
 import { createBrowserStore } from '../src/browser-storage.ts';
 
 const schedule = {
-  schemaVersion: 1, timezone: 'Asia/Qyzylorda', goals: [],
+  schemaVersion: 1,
+  timezone: 'Asia/Qyzylorda',
+  goals: [],
   challenge: { title: '30 дней', startDate: '2026-11-08', durationDays: 30 },
-  activities: [{ id: 'read', title: 'Чтение', kind: 'habit', startDate: '2026-11-01', durationMinutes: 20, recurrence: { type: 'daily' } }],
+  activities: [
+    {
+      id: 'read',
+      title: 'Чтение',
+      kind: 'habit',
+      startDate: '2026-11-01',
+      durationMinutes: 20,
+      recurrence: { type: 'daily' },
+    },
+  ],
 };
 function fixture() {
   const values = new Map();
-  const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
-  const options = { storage, namespace: 'test:/raspisulik/', loadTemplate: async () => structuredClone(schedule), now: () => new Date('2026-11-08T12:00:00Z') };
+  const storage = {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+  };
+  const options = {
+    storage,
+    namespace: 'test:/raspisulik/',
+    loadTemplate: async () => structuredClone(schedule),
+    now: () => new Date('2026-11-08T12:00:00Z'),
+  };
   return { values, storage, options, store: createBrowserStore(options) };
 }
 test('browser marks survive reload, stay per-occurrence, and are separate from demo', async () => {
@@ -29,15 +48,45 @@ test('browser date follows Qyzylorda midnight without rebuilding or recreating t
   instant = new Date('2026-11-08T19:00:00Z');
   assert.equal((await store.load('personal')).today, '2026-11-09');
 });
+
+test('a valid full backup recovers corrupted saved data; invalid imports leave it untouched', async () => {
+  const { store, values } = fixture();
+  await store.setCompleted('personal', { activityId: 'read', date: '2026-11-08', completed: true });
+  const backup = await store.exportPersonal();
+  const key = 'test:/raspisulik/:personal';
+  values.set(key, '{broken');
+  await assert.rejects(store.importPersonal(JSON.stringify(schedule)));
+  await assert.rejects(
+    store.importPersonal(
+      JSON.stringify({ format: 'raspisulik-backup', version: 1, schedule, completions: {} }),
+    ),
+  );
+  assert.equal(values.get(key), '{broken');
+  await store.importPersonal(backup);
+  assert.deepEqual((await store.load('personal')).schedule, schedule);
+  assert.ok((await store.load('personal')).completions.completed['read@2026-11-08']);
+});
 test('concurrent mutations through one store preserve each date', async () => {
   const { store } = fixture();
-  await Promise.all(Array.from({ length: 20 }, (_, i) => store.setCompleted('personal', { activityId: 'read', date: `2026-11-${String(i + 1).padStart(2, '0')}`, completed: true })));
+  await Promise.all(
+    Array.from({ length: 20 }, (_, i) =>
+      store.setCompleted('personal', {
+        activityId: 'read',
+        date: `2026-11-${String(i + 1).padStart(2, '0')}`,
+        completed: true,
+      }),
+    ),
+  );
   assert.equal(Object.keys((await store.load('personal')).completions.completed).length, 20);
 });
 test('shared exclusive lock protects simultaneous writes from separate tabs', async () => {
   const { options } = fixture();
   let lock = Promise.resolve();
-  const exclusive = operation => { const next = lock.then(operation); lock = next.catch(() => {}); return next; };
+  const exclusive = (operation) => {
+    const next = lock.then(operation);
+    lock = next.catch(() => {});
+    return next;
+  };
   const a = createBrowserStore({ ...options, exclusive });
   const b = createBrowserStore({ ...options, exclusive });
   await Promise.all([
@@ -67,8 +116,12 @@ test('invalid imports and quota errors leave existing browser data intact', asyn
   await assert.rejects(store.importPersonal('{invalid'));
   await assert.rejects(store.importPersonal(JSON.stringify({ ...schedule, timezone: 'UTC' })));
   assert.deepEqual([...values], before);
-  storage.setItem = () => { throw new Error('QuotaExceededError'); };
-  await assert.rejects(store.setCompleted('personal', { activityId: 'read', date: '2026-11-08', completed: true }));
+  storage.setItem = () => {
+    throw new Error('QuotaExceededError');
+  };
+  await assert.rejects(
+    store.setCompleted('personal', { activityId: 'read', date: '2026-11-08', completed: true }),
+  );
   assert.deepEqual([...values], before);
 });
 test('corrupt browser data is reported instead of silently discarded', async () => {
