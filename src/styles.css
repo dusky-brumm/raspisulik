@@ -196,6 +196,11 @@ button svg {
   display: flex;
   flex-direction: column;
   padding: 36px 16px 24px 24px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.sidebar > * {
+  flex-shrink: 0;
 }
 .brand {
   display: flex;
@@ -260,6 +265,89 @@ button svg {
   color: var(--ink);
   background: var(--glass-hover);
   border-color: var(--glass-border);
+}
+.sidebar-calendar {
+  margin-top: 20px;
+  padding: 12px 8px 8px;
+  border-radius: 24px;
+}
+.mini-calendar-toggle {
+  display: none;
+}
+.mini-calendar-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.mini-calendar-heading h2 {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+.mini-calendar-arrow {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  color: var(--accent-ui);
+}
+.mini-calendar-arrow svg {
+  width: 16px;
+  height: 16px;
+}
+.mini-calendar-weekdays,
+.mini-calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  text-align: center;
+}
+.mini-calendar-weekdays {
+  color: var(--secondary);
+  font-size: 11px;
+  line-height: 24px;
+  margin-bottom: 4px;
+}
+.mini-calendar-day {
+  min-width: 0;
+  min-height: 28px;
+  padding: 2px 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 22px;
+  font-variant-numeric: tabular-nums;
+}
+.mini-calendar-day.outside {
+  color: var(--secondary);
+}
+.mini-calendar-day.today {
+  border-color: var(--accent-ui);
+  color: var(--accent-ui);
+}
+.mini-calendar-arrow:hover:not(:disabled),
+.mini-calendar-day:hover:not(:disabled),
+.mini-calendar-today:hover {
+  background: var(--glass-hover);
+}
+.mini-calendar-day.selected,
+.mini-calendar-day.selected:hover {
+  background: var(--accent-ui);
+  color: white;
+}
+.mini-calendar-today {
+  display: block;
+  width: 100%;
+  min-height: 32px;
+  margin-top: 8px;
+  border-radius: 8px;
+  color: var(--accent-ui);
+  font-size: 12px;
 }
 .sidebar-bottom {
   margin-top: auto;
@@ -2373,6 +2461,15 @@ h1 {
     font-size: 17px;
     padding: 0 8px;
   }
+  .mini-calendar-heading {
+    gap: 0;
+  }
+  .mini-calendar-heading h2 {
+    font-size: 12px;
+  }
+  .mini-calendar-arrow {
+    width: 24px;
+  }
   .page-content {
     padding-left: 16px;
     padding-right: 16px;
@@ -2404,6 +2501,45 @@ h1 {
     height: auto;
     padding: 16px 24px 0;
     position: static;
+    overflow: visible;
+  }
+  .sidebar-calendar {
+    margin-top: 12px;
+    padding: 0;
+    border-radius: 16px;
+  }
+  .mini-calendar-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 16px;
+    font-size: 13px;
+    text-transform: capitalize;
+  }
+  .mini-calendar-toggle svg {
+    width: 18px;
+    height: 18px;
+    color: var(--accent-ui);
+  }
+  .mini-calendar-toggle svg:last-child {
+    margin-left: auto;
+  }
+  .sidebar-calendar.expanded .mini-calendar-toggle svg:last-child {
+    transform: rotate(180deg);
+  }
+  .mini-calendar-content {
+    max-width: 320px;
+    margin: 0 auto;
+    padding: 12px;
+  }
+  .sidebar-calendar:not(.expanded) .mini-calendar-content {
+    display: none;
+  }
+  .mini-calendar-day {
+    min-height: 36px;
+    font-size: 13px;
   }
   .brand {
     width: max-content;

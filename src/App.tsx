@@ -57,6 +57,7 @@ import { dataClient } from './data-client';
 import TrainingView from './TrainingView';
 import DayView from './DayView';
 import BackupPanel from './BackupPanel';
+import SidebarCalendar from './SidebarCalendar';
 import { ensureLocalWorkouts, videoStore } from './workout-store';
 import { readPreference, writePreference } from './preferences';
 
@@ -332,6 +333,7 @@ export default function App() {
     setDay(value);
     setMonth(monthStart(value));
     setView('day');
+    window.scrollTo({ top: 0, left: 0 });
   }
   function goToday() {
     setDay(today);
@@ -445,6 +447,13 @@ export default function App() {
             </button>
           ))}
         </nav>
+        <SidebarCalendar
+          month={month}
+          selectedDate={day}
+          today={today}
+          onMonthChange={setMonth}
+          onSelect={openDay}
+        />
         <div className="sidebar-bottom">
           <button
             className="help-button"
@@ -566,7 +575,10 @@ export default function App() {
                   schedule={schedule!}
                   date={day}
                   today={today}
-                  setDate={setDay}
+                  setDate={(value) => {
+                    setDay(value);
+                    setMonth(monthStart(value));
+                  }}
                   focusActivity={videoActivity}
                   onProgress={videoCompletion}
                 />
