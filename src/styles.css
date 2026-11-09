@@ -2800,7 +2800,270 @@ h1 {
   }
 }
 
+/* Breathing movement communicates the phase. Text stays still and legible. */
+.training-modes {
+  width: fit-content;
+  margin-bottom: 24px;
+}
+.training-modes button {
+  min-width: 128px;
+}
+.breathing {
+  max-width: 880px;
+  margin: 0 auto;
+}
+.breathing-programs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.breathing-program {
+  padding: 20px 24px;
+  text-align: left;
+  border-radius: 20px;
+}
+.breathing-program.selected {
+  border-color: var(--accent-ui);
+}
+.breathing-program.selected:disabled {
+  opacity: 1;
+}
+.breathing-program:hover:not(:disabled) {
+  background: var(--glass-hover);
+}
+.breathing-program strong {
+  display: block;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 500;
+}
+.breathing-program > span {
+  display: block;
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--secondary);
+}
+.breathing button:disabled,
+.breathing select:disabled {
+  cursor: default;
+}
+.breathing-session {
+  padding: 24px;
+  scroll-margin-top: 24px;
+}
+.breathing-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.breathing-toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--secondary);
+  font-size: 13px;
+}
+.breathing-toolbar select,
+.breathing-settings select {
+  font: inherit;
+  color: var(--ink);
+  min-height: 44px;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  background: var(--glass);
+  padding: 8px 12px;
+}
+.breathing-sound {
+  white-space: nowrap;
+  font-size: 13px;
+}
+.breathing-rhythm {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--secondary);
+  font-variant-numeric: tabular-nums;
+}
+.breathing-rhythm > span {
+  padding: 0 8px;
+}
+.breathing-guide {
+  width: 240px;
+  height: 240px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin: 24px auto 16px;
+}
+.breathing-ring {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--accent-ui);
+  border-radius: 50%;
+  background: var(--ice);
+  transition: transform 100ms linear;
+}
+.breathing-guide-label {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+.breathing-guide-label > span {
+  font-size: 18px;
+  line-height: 24px;
+}
+.breathing-guide-label > strong {
+  font-size: 56px;
+  line-height: 64px;
+  font-weight: 400;
+  color: var(--accent-ui);
+  font-variant-numeric: tabular-nums;
+}
+.breathing-guide-label > strong .lucide {
+  width: 56px;
+  height: 64px;
+}
+.breathing-guide-label small {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--secondary);
+}
+.breathing-remaining {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.breathing-remaining > span {
+  display: block;
+  font-size: 24px;
+  line-height: 30px;
+}
+.breathing-remaining > small {
+  display: block;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--secondary);
+  margin-top: 4px;
+}
+.breathing-controls {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+.breathing-controls > button {
+  min-width: 144px;
+}
+.breathing-pause-note {
+  text-align: center;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--secondary);
+  margin-top: 16px;
+}
+.breathing-details {
+  margin-top: 24px;
+  padding: 0 8px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--secondary);
+}
+.breathing-details summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding: 12px 0;
+  color: var(--ink);
+}
+.breathing-details > p {
+  margin: 12px 0;
+  max-width: 680px;
+}
+.breathing-details > a {
+  padding-left: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.breathing-settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin: 16px 0;
+}
+.breathing-settings label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.breathing-comfort {
+  padding: 0 8px;
+  margin-top: 16px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--secondary);
+  max-width: 680px;
+}
+@media (max-width: 600px) {
+  .breathing-programs {
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .breathing-program {
+    padding: 16px;
+  }
+  .breathing-program strong {
+    font-size: 15px;
+    line-height: 22px;
+  }
+  .breathing-session {
+    padding: 16px;
+  }
+  .breathing-toolbar {
+    gap: 8px;
+  }
+  .breathing-toolbar label {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .breathing-sound {
+    padding: 8px;
+  }
+  .breathing-rhythm {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .breathing-rhythm > span {
+    padding: 0 4px;
+  }
+  .breathing-guide {
+    width: 224px;
+    height: 224px;
+    margin-top: 16px;
+  }
+  .breathing-controls > button {
+    min-width: 0;
+    flex: 1;
+    padding: 12px;
+  }
+  .training-modes {
+    width: 100%;
+  }
+  .training-modes button {
+    flex: 1;
+    min-width: 0;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
+  .breathing-ring {
+    transform: scale(0.86) !important;
+  }
   *,
   *::before,
   *::after {

@@ -53,7 +53,7 @@ import type {
   Schedule,
 } from './domain';
 import { dataClient } from './data-client';
-import VideoLibrary from './VideoLibrary';
+import TrainingView from './TrainingView';
 import DayView from './DayView';
 import BackupPanel from './BackupPanel';
 import { videoStore } from './workout-store';
@@ -559,7 +559,7 @@ export default function App() {
               )}
 
               {view === 'videos' ? (
-                <VideoLibrary
+                <TrainingView
                   key={`${dataset}:${videoActivity ?? 'library'}`}
                   dataset={dataset}
                   schedule={schedule!}
