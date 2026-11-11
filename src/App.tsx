@@ -58,6 +58,8 @@ import TrainingView from './TrainingView';
 import DayView from './DayView';
 import BackupPanel from './BackupPanel';
 import SidebarCalendar from './SidebarCalendar';
+import { LiquidNavbar } from './components/ui/liquid-glass-navbar';
+import type { LiquidNavItem, NimbusFx } from './components/ui/liquid-glass-navbar';
 import { ensureLocalWorkouts, videoStore } from './workout-store';
 import { readPreference, writePreference } from './preferences';
 
@@ -72,6 +74,12 @@ const nav: { id: View; title: string; icon: typeof Folders }[] = [
   { id: 'tasks', title: 'Задачи', icon: ListTodo },
   { id: 'videos', title: 'Тренировки', icon: Dumbbell },
 ];
+const menuEffects: NimbusFx[] = ['wave', 'glow', 'pop', 'wave', 'pop', 'drop'];
+const liquidNavItems: LiquidNavItem[] = nav.map(({ title, icon: Icon }, index) => ({
+  label: title,
+  icon: <Icon size={20} strokeWidth={1.6} />,
+  fx: menuEffects[index],
+}));
 const headings: Record<View, string> = {
   timeline: 'Расписание',
   day: 'День',
@@ -430,23 +438,19 @@ export default function App() {
           </span>
           <span>расписулик</span>
         </a>
-        <nav aria-label="Основная навигация">
-          {nav.map(({ id, title, icon: Icon }) => (
-            <button
-              key={id}
-              className={`nav-item ${view === id ? 'active' : ''}`}
-              onClick={() => {
-                setView(id);
-                if (id === 'goals') setGoalId('all');
-                if (id === 'videos') setVideoActivity(undefined);
-              }}
-              aria-current={view === id ? 'page' : undefined}
-            >
-              <Icon size={22} strokeWidth={1.5} />
-              <span>{title}</span>
-            </button>
-          ))}
-        </nav>
+        <LiquidNavbar
+          items={liquidNavItems}
+          active={nav.findIndex((item) => item.id === view)}
+          tone="light"
+          compact={false}
+          sound={false}
+          onChange={(index) => {
+            const id = nav[index].id;
+            setView(id);
+            if (id === 'goals') setGoalId('all');
+            if (id === 'videos') setVideoActivity(undefined);
+          }}
+        />
         <SidebarCalendar
           month={month}
           selectedDate={day}

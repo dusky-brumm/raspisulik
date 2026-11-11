@@ -1,5 +1,5 @@
-/* Visual tokens follow the user-supplied design code: matte glass,
-   ice / lavender backgrounds, Inter, 4 px spacing, and a single blue UI accent.
+/* Waterline colors and liquid glass follow the latest user-supplied component.
+   The planner keeps Inter, clear text and the existing 4 px spacing system.
    Earlier cleanup: unslop by Damir Sokolovsky, https://github.com/heydamir/unslop (CC BY 4.0). */
 
 :root {
@@ -10,19 +10,20 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  color: #273548;
-  background: #f4f6f7;
-  --page: #f4f6f7;
-  --ice: #dce8f2;
-  --lavender: #e8e3ef;
-  --ink: #273548;
-  --secondary: #5e6b7e;
-  --accent-ui: #496fa6;
-  --glass: rgb(255 255 255 / 0.56);
-  --glass-hover: rgb(255 255 255 / 0.68);
-  --glass-border: rgb(255 255 255 / 0.65);
-  --line: rgb(39 53 72 / 0.08);
-  --shadow: 0 12px 32px rgb(39 53 72 / 0.06);
+  color: #0b132b;
+  background: #dcebf5;
+  --page: #dcebf5;
+  --ice: #cfe8f7;
+  --lavender: #e2eef7;
+  --ink: #0b132b;
+  --secondary: #53637a;
+  --accent-ui: #006da8;
+  --water-accent: #00a2ff;
+  --glass: rgb(255 255 255 / 0.32);
+  --glass-hover: rgb(255 255 255 / 0.52);
+  --glass-border: rgb(255 255 255 / 0.7);
+  --line: rgb(11 19 43 / 0.08);
+  --shadow: 0 12px 32px -14px rgb(0 40 90 / 0.2);
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -39,8 +40,8 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(ellipse at 0% 20%, rgb(220 232 242 / 0.86), transparent 52%),
-    radial-gradient(ellipse at 100% 95%, rgb(232 227 239 / 0.8), transparent 58%), #f4f6f7;
+    radial-gradient(ellipse at 5% 0%, rgb(255 255 255 / 0.32), transparent 55%),
+    radial-gradient(ellipse at 100% 100%, rgb(152 205 241 / 0.26), transparent 60%), #dcebf5;
 }
 button,
 input,
@@ -174,14 +175,13 @@ button svg {
 
 /* Blur belongs to the background layers. Text itself stays opaque and sharp. */
 .panel,
-.sidebar nav,
 .goal-card,
 .help-button {
   background: var(--glass);
   border: 1px solid var(--glass-border);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(24px) saturate(110%);
-  -webkit-backdrop-filter: blur(24px) saturate(110%);
+  backdrop-filter: blur(18px) saturate(120%);
+  -webkit-backdrop-filter: blur(18px) saturate(120%);
 }
 .app-shell {
   display: flex;
@@ -197,7 +197,10 @@ button svg {
   flex-direction: column;
   padding: 36px 16px 24px 24px;
   overflow-y: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
+}
+.sidebar::-webkit-scrollbar {
+  display: none;
 }
 .sidebar > * {
   flex-shrink: 0;
@@ -233,38 +236,34 @@ button svg {
 .brand-mark > span:nth-child(3) {
   width: 6px;
 }
-.sidebar nav {
+.sidebar nav.nimbus-nav {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 4px;
-  padding: 12px;
+  padding: 8px;
+  --n-radius: 28px;
   border-radius: 28px;
   margin-top: 32px;
 }
-.nav-item {
+.sidebar .nimbus-item {
   display: flex;
   align-items: center;
   gap: 12px;
+  justify-content: flex-start;
   text-align: left;
-  min-height: 44px;
-  padding: 8px 12px;
-  border: 1px solid transparent;
-  border-radius: 16px;
-  color: var(--secondary);
+  width: 100%;
+  height: 48px;
+  min-height: 48px;
+  padding: 0 14px;
+  border-radius: 999px;
 }
-.nav-item > svg {
-  color: var(--secondary);
+.sidebar .nv-ico svg {
+  width: 20px;
+  height: 20px;
 }
-.nav-item.active > svg {
-  color: var(--accent-ui);
-}
-.nav-item:hover {
-  background: rgb(255 255 255 / 0.4);
-}
-.nav-item.active {
-  color: var(--ink);
-  background: var(--glass-hover);
-  border-color: var(--glass-border);
+.sidebar .nimbus-item[aria-current='page'] {
+  color: #0b132b;
 }
 .sidebar-calendar {
   margin-top: 20px;
@@ -373,6 +372,42 @@ button svg {
 .main {
   flex: 1;
   min-width: 0;
+}
+@media (min-width: 801px) and (max-height: 820px) {
+  .sidebar {
+    padding-top: 24px;
+    padding-bottom: 16px;
+  }
+  .sidebar nav.nimbus-nav {
+    margin-top: 20px;
+    padding: 6px;
+    gap: 0;
+  }
+  .sidebar .nimbus-item {
+    height: 44px;
+    min-height: 44px;
+  }
+  .sidebar-calendar {
+    margin-top: 16px;
+    padding: 8px 6px;
+  }
+  .mini-calendar-heading {
+    margin-bottom: 0;
+  }
+  .mini-calendar-weekdays {
+    line-height: 20px;
+  }
+  .mini-calendar-day {
+    min-height: 24px;
+    padding: 0;
+  }
+  .mini-calendar-today {
+    min-height: 28px;
+    margin-top: 4px;
+  }
+  .sidebar-bottom {
+    padding-top: 16px;
+  }
 }
 .page-content {
   max-width: 1600px;
@@ -565,7 +600,7 @@ h1 {
   position: sticky;
   left: 0;
   z-index: 3;
-  background: #f4f7fa;
+  background: #eaf3f9;
   text-align: left;
   border-right: 1px solid var(--line);
 }
@@ -588,7 +623,7 @@ h1 {
   gap: 4px;
 }
 .timeline-table thead th > button:hover {
-  background: rgb(220 232 242 / 0.6);
+  background: rgb(207 232 247 / 0.6);
 }
 .timeline-table thead small {
   font-size: 13px;
@@ -611,7 +646,7 @@ h1 {
 }
 .timeline-row td,
 .timeline-row th {
-  border-bottom: 1px solid rgb(39 53 72 / 0.055);
+  border-bottom: 1px solid rgb(11 19 43 / 0.055);
 }
 .timeline-row:last-child td,
 .timeline-row:last-child th {
@@ -620,14 +655,14 @@ h1 {
 .timeline-row td {
   position: relative;
   text-align: center;
-  border-right: 1px solid rgb(39 53 72 / 0.025);
+  border-right: 1px solid rgb(11 19 43 / 0.025);
 }
 .timeline-table .weekend {
-  background: rgb(220 232 242 / 0.14);
+  background: rgb(207 232 247 / 0.14);
 }
 .timeline-table .today-column {
-  background: rgb(73 111 166 / 0.06);
-  border-left: 1px solid rgb(73 111 166 / 0.35);
+  background: rgb(0 162 255 / 0.06);
+  border-left: 1px solid rgb(0 162 255 / 0.35);
 }
 .activity-label {
   display: flex;
@@ -783,7 +818,7 @@ h1 {
   border-bottom: 1px solid var(--line);
 }
 .timeline-group-row th {
-  background: #f4f7fa;
+  background: #eaf3f9;
 }
 .timeline-group-row td {
   padding: 8px 16px;
@@ -816,7 +851,7 @@ h1 {
   line-height: 18px;
 }
 .timeline-section-row td {
-  border-bottom: 1px solid rgb(39 53 72 / 0.035);
+  border-bottom: 1px solid rgb(11 19 43 / 0.035);
 }
 
 /* Task rows have one detail action and one completion control. */
@@ -1465,13 +1500,13 @@ h1 {
 }
 .calendar-weekend,
 .outside-month {
-  background: rgb(220 232 242 / 0.14);
+  background: rgb(207 232 247 / 0.14);
 }
 .outside-month .calendar-date {
   color: var(--secondary);
 }
 .calendar-today {
-  background: rgb(220 232 242 / 0.36);
+  background: rgb(207 232 247 / 0.36);
 }
 .calendar-date {
   display: flex;
@@ -1777,8 +1812,8 @@ h1 {
   border: 1px solid var(--accent-ui);
 }
 .primary-button:hover {
-  background: #3f6395;
-  border-color: #3f6395;
+  background: #005d93;
+  border-color: #005d93;
 }
 .secondary-button {
   background: var(--glass);
@@ -1856,7 +1891,7 @@ h1 {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgb(39 53 72 / 0.18);
+  background: rgb(11 19 43 / 0.18);
 }
 .modal {
   width: 544px;
@@ -1944,7 +1979,7 @@ h1 {
   background: var(--ice);
 }
 .done-button:hover {
-  background: #d1e1ef;
+  background: #c7e5f7;
   border-color: #aec0d8;
 }
 .hint-text {
@@ -2264,7 +2299,7 @@ h1 {
   width: fit-content;
 }
 .video-playlist li.video-selected {
-  background: rgb(220 232 242 / 0.5);
+  background: rgb(207 232 247 / 0.5);
 }
 .video-playlist .completion {
   flex-shrink: 0;
@@ -2410,11 +2445,11 @@ h1 {
     gap: 8px;
     font-size: 18px;
   }
-  .nav-item {
+  .sidebar .nimbus-item {
     gap: 8px;
     padding: 12px 8px;
   }
-  .sidebar nav {
+  .sidebar nav.nimbus-nav {
     padding: 8px;
   }
   .help-button {
@@ -2547,7 +2582,7 @@ h1 {
     padding: 0;
     min-height: 32px;
   }
-  .sidebar nav {
+  .sidebar nav.nimbus-nav {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 4px;
@@ -2555,13 +2590,14 @@ h1 {
     margin-top: 20px;
     border-radius: 20px;
   }
-  .nav-item {
+  .sidebar .nimbus-item {
     flex-direction: column;
+    height: auto;
     justify-content: center;
     gap: 8px;
     padding: 12px 4px;
     min-height: 64px;
-    border-radius: 12px;
+    border-radius: 999px;
     font-size: 13px;
     line-height: 18px;
   }
@@ -2630,12 +2666,13 @@ h1 {
   .sidebar-bottom {
     right: 16px;
   }
-  .sidebar nav {
+  .sidebar nav.nimbus-nav {
     gap: 0;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     padding: 8px 4px;
     margin-top: 16px;
   }
-  .nav-item {
+  .sidebar .nimbus-item {
     gap: 4px;
     min-height: 64px;
     padding: 8px 0;
@@ -3042,18 +3079,18 @@ h1 {
 }
 
 @media (max-width: 440px) {
-  .sidebar nav {
+  .sidebar nav.nimbus-nav {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 4px;
     padding: 8px;
   }
-  .nav-item {
-    flex-direction: row;
-    gap: 8px;
-    min-height: 44px;
-    font-size: 13px;
+  .sidebar .nimbus-item {
+    flex-direction: column;
+    gap: 4px;
+    min-height: 64px;
+    font-size: 12px;
   }
-  .nav-item .lucide {
+  .sidebar .nimbus-item .lucide {
     width: 18px;
     height: 18px;
   }
